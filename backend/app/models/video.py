@@ -66,6 +66,10 @@ class Video(Base):
     title = Column(String(255))  # User-provided title
     description = Column(Text)
     
+    # Analysis metadata (temporary storage for silence/scene detection)
+    # Note: Can't use 'metadata' - it's reserved by SQLAlchemy
+    analysis_metadata = Column(JSON)  # {silence_segments: [...], scene_timestamps: [...]}
+    
     # Soft delete
     deleted_at = Column(String)
     
@@ -78,6 +82,12 @@ class Video(Base):
     assets = relationship("VideoAsset", back_populates="video", cascade="all, delete-orphan")
     upload_chunks = relationship("UploadChunk", back_populates="video", cascade="all, delete-orphan")
     processing_logs = relationship("ProcessingLog", back_populates="video", cascade="all, delete-orphan")
+    
+    # Video Editing Relationships
+    transcript = relationship("Transcript", back_populates="video", uselist=False, cascade="all, delete-orphan")
+    clip_candidates = relationship("ClipCandidate", back_populates="video", cascade="all, delete-orphan")
+    edit_jobs = relationship("EditJob", back_populates="video", cascade="all, delete-orphan")
+    retention_analysis = relationship("RetentionAnalysis", back_populates="video", uselist=False, cascade="all, delete-orphan")
     
     # Indexes for common queries
     __table_args__ = (

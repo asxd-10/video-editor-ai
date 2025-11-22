@@ -29,4 +29,28 @@ websockets==12.0
 # Validation
 python-magic==0.4.27  # MIME type detection
 
+# Transcription & Speech Processing
+faster-whisper # Faster Whisper implementation (open-source, free)
+# torch - Install CPU-only FIRST: pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+# Then install silero-vad which will use the existing CPU torch
+
+# Audio Analysis
+librosa
+soundfile
+# silero-vad - Install AFTER CPU torch to avoid CUDA dependencies
+pydub  # Audio manipulation
+
+# Scene Detection
+scenedetect[opencv] # PySceneDetect for scene change detection
+
+# Face Detection & Computer Vision
+mediapipe # Google's face detection (free, fast)
+
+# LLM Integration (Free options - HuggingFace)
+transformers  # For using HuggingFace models
+# Note: torch is already listed above
+
+# Optional: OpenAI (if you have API key and want to use it)
+# openai==1.6.1
+
 # Note: ffmpeg is installed as a system package via nixPkgs

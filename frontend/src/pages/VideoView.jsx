@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Download, Trash2, Clock, Calendar, FileVideo } from 'lucide-react';
 import VideoPlayer from '../components/video/VideoPlayer';
 import ProcessingStatus from '../components/video/ProcessingStatus';
+import TranscriptViewer from '../components/edit/TranscriptViewer';
+import ClipCandidates from '../components/edit/ClipCandidates';
+import AIActions from '../components/edit/AIActions';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import { videoAPI } from '../services/api';
@@ -12,14 +15,31 @@ import { formatFileSize, formatDuration, formatDate, getStatusColor, getStatusLa
 export default function VideoView() {
   const { videoId } = useParams();
   const navigate = useNavigate();
+  const videoRef = useRef(null);
   const [video, setVideo] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [transcript, setTranscript] = useState(null);
+  const [transcriptStatus, setTranscriptStatus] = useState('not_found');
+  const [candidates, setCandidates] = useState([]);
+  const [analysisStatus, setAnalysisStatus] = useState('not_found');
 
   useEffect(() => {
     loadVideo();
     loadLogs();
+    loadTranscriptStatus();
+    loadCandidates();
   }, [videoId]);
+
+  // Poll for transcript status
+  useEffect(() => {
+    if (transcriptStatus === 'queued') {
+      const interval = setInterval(() => {
+        loadTranscriptStatus();
+      }, 5000); // Check every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [transcriptStatus]);
 
   const loadVideo = async () => {
     try {
@@ -38,6 +58,79 @@ export default function VideoView() {
       setLogs(response.data.logs);
     } catch (error) {
       console.error('Failed to load logs:', error);
+    }
+  };
+
+  const loadTranscriptStatus = async () => {
+    try {
+      const response = await videoAPI.getTranscriptStatus(videoId);
+      setTranscriptStatus(response.data.status);
+      if (response.data.status === 'complete') {
+        loadTranscript();
+      }
+    } catch (error) {
+      console.error('Failed to load transcript status:', error);
+      setTranscriptStatus('not_found');
+    }
+  };
+
+  const loadTranscript = async () => {
+    try {
+      const response = await videoAPI.getTranscript(videoId);
+      setTranscript(response.data);
+    } catch (error) {
+      console.error('Failed to load transcript:', error);
+    }
+  };
+
+  const loadCandidates = async () => {
+    try {
+      const response = await videoAPI.getCandidates(videoId);
+      setCandidates(response.data.candidates || []);
+    } catch (error) {
+      console.error('Failed to load candidates:', error);
+    }
+  };
+
+  const handleTranscribe = async () => {
+    try {
+      await videoAPI.startTranscription(videoId);
+      setTranscriptStatus('queued');
+    } catch (error) {
+      console.error('Failed to start transcription:', error);
+      alert('Failed to start transcription');
+    }
+  };
+
+  const handleAnalyze = async () => {
+    try {
+      await videoAPI.startAnalysis(videoId);
+      setAnalysisStatus('queued');
+      // Poll for completion
+      const interval = setInterval(async () => {
+        try {
+          const response = await videoAPI.getCandidates(videoId);
+          if (response.data.count > 0) {
+            setAnalysisStatus('complete');
+            clearInterval(interval);
+          }
+        } catch (e) {
+          // Ignore errors while polling
+        }
+      }, 5000);
+    } catch (error) {
+      console.error('Failed to start analysis:', error);
+      alert('Failed to start analysis');
+    }
+  };
+
+  const handleGenerateCandidates = async () => {
+    try {
+      await videoAPI.generateCandidates(videoId);
+      await loadCandidates();
+    } catch (error) {
+      console.error('Failed to generate candidates:', error);
+      alert('Failed to generate candidates');
     }
   };
 
@@ -104,9 +197,56 @@ export default function VideoView() {
                 animate={{ opacity: 1, y: 0 }}
               >
                 <VideoPlayer
+                  ref={videoRef}
                   src={`http://localhost:8000${proxyUrl}`}
                   poster={thumbnailUrl ? `http://localhost:8000${thumbnailUrl}` : undefined}
                   className="w-full aspect-video"
+                />
+              </motion.div>
+            )}
+
+            {/* AI Actions */}
+            {video.status === 'ready' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+              >
+                <AIActions
+                  videoId={videoId}
+                  onTranscribe={handleTranscribe}
+                  onAnalyze={handleAnalyze}
+                  onGenerateCandidates={handleGenerateCandidates}
+                  transcriptStatus={transcriptStatus}
+                  analysisStatus={analysisStatus}
+                />
+              </motion.div>
+            )}
+
+            {/* Transcript Viewer */}
+            {transcript && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <TranscriptViewer
+                  transcript={transcript}
+                  videoRef={videoRef}
+                />
+              </motion.div>
+            )}
+
+            {/* Clip Candidates */}
+            {candidates.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+              >
+                <ClipCandidates
+                  candidates={candidates}
+                  videoRef={videoRef}
                 />
               </motion.div>
             )}
