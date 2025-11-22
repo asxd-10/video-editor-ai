@@ -83,8 +83,9 @@ services:
     autoDeploy: true
 
   # Frontend
-  - type: static
+  - type: web
     name: video-editor-frontend
+    runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./frontend/dist
     pullRequestPreviewsEnabled: true
