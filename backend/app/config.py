@@ -20,13 +20,13 @@ class Settings(BaseSettings):
     ALLOWED_VIDEO_EXTENSIONS: list = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
     ALLOWED_MIME_TYPES: list = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska", "video/webm"]
     
-    # Storage - Use /opt/render/project/src for Render persistent disk
-    BASE_STORAGE_PATH: Path = Path(os.getenv("STORAGE_PATH", "../storage"))
-    UPLOAD_DIR: Path = None
-    PROCESSED_DIR: Path = None
-    TEMP_DIR: Path = None
-    THUMBNAILS_DIR: Path = None
-    
+    # Storage - Use Railway's persistent storage or local
+    BASE_STORAGE_PATH: Path = Path(os.getenv("STORAGE_PATH", os.getenv("RAILWAY_VOLUME_MOUNT_PATH", "../storage")))
+    UPLOAD_DIR: Path = Path("../storage/uploads")
+    PROCESSED_DIR: Path = Path("../storage/processed")
+    TEMP_DIR: Path = Path("../storage/temp")
+    THUMBNAILS_DIR: Path = Path("../storage/thumbnails")
+
     # Chunked upload settings
     CHUNK_SIZE_MB: int = 5
     ENABLE_CHUNKED_UPLOAD: bool = True
@@ -44,8 +44,9 @@ class Settings(BaseSettings):
     
     # Redis/Celery
     REDIS_URL: str = "redis://localhost:6379/0"
-    CELERY_BROKER_URL: str = None
-    CELERY_RESULT_BACKEND: str = None
+    CELERY_BROKER_URL: str = ""
+    CELERY_RESULT_BACKEND: str = ""
+
     
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -76,12 +77,25 @@ class Settings(BaseSettings):
         
         # Set CORS origins dynamically
         if self.ENVIRONMENT == "production":
-            # Will be set by RENDER_EXTERNAL_URL
-            frontend_url = os.getenv("FRONTEND_URL")
+            frontend_url = os.getenv("FRONTEND_URL") or os.getenv("RAILWAY_PUBLIC_DOMAIN")
+            backend_url = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("BACKEND_URL")
+            origins = []
             if frontend_url:
-                self.ALLOWED_ORIGINS = [frontend_url]
+                # Handle both with and without protocol
+                if not frontend_url.startswith("http"):
+                    origins.extend([f"https://{frontend_url}", f"http://{frontend_url}"])
+                else:
+                    origins.append(frontend_url)
+            if backend_url:
+                if not backend_url.startswith("http"):
+                    origins.append(f"https://{backend_url}")
+                else:
+                    origins.append(backend_url)
+            # Fallback to allow all if no URLs set (for development)
+            self.ALLOWED_ORIGINS = origins if origins else ["*"]
         else:
-            self.ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000"]
+            self.ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"]
+
 
 @lru_cache()
 def get_settings() -> Settings:
