@@ -1,12 +1,23 @@
 import { motion } from 'framer-motion';
-import { Play, Clock, Calendar, MoreVertical } from 'lucide-react';
+import { Play, Clock, Calendar } from 'lucide-react';
 import { formatDuration, formatRelativeTime, getStatusColor, getStatusLabel } from '../../utils/formatters';
 import Badge from '../common/Badge';
+import VideoCardMenu from './VideoCardMenu';
 import clsx from 'clsx';
 
-export default function VideoCard({ video, onClick }) {
-  const thumbnailUrl = video.thumbnail || '/placeholder-video.jpg';
+export default function VideoCard({ video, onClick, onDelete }) {
+  // Use placeholder if no thumbnail
+  const thumbnailUrl = video.thumbnail 
+    ? `http://localhost:8000${video.thumbnail}` 
+    : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="225" viewBox="0 0 400 225"%3E%3Crect fill="%23e2e8f0" width="400" height="225"/%3E%3Ctext fill="%2394a3b8" font-family="sans-serif" font-size="24" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E📹 No Thumbnail%3C/text%3E%3C/svg%3E';
+  
   const isReady = video.status === 'ready';
+
+  const handleView = () => {
+    if (isReady) {
+      onClick?.(video);
+    }
+  };
 
   return (
     <motion.div
@@ -14,18 +25,24 @@ export default function VideoCard({ video, onClick }) {
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -8 }}
       transition={{ duration: 0.2 }}
-      onClick={() => isReady && onClick?.(video)}
-      className={clsx(
-        'card p-0 overflow-hidden',
-        isReady && 'cursor-pointer'
-      )}
+      className="card p-0 overflow-hidden"
     >
       {/* Thumbnail */}
-      <div className="relative aspect-video bg-dark-100 overflow-hidden group">
+      <div 
+        className={clsx(
+          "relative aspect-video bg-dark-100 overflow-hidden group",
+          isReady && "cursor-pointer"
+        )}
+        onClick={handleView}
+      >
         <img
           src={thumbnailUrl}
           alt={video.title}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={(e) => {
+            // Fallback if image fails to load
+            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="225" viewBox="0 0 400 225"%3E%3Crect fill="%23e2e8f0" width="400" height="225"/%3E%3Ctext fill="%2394a3b8" font-family="sans-serif" font-size="24" dy="10.5" font-weight="bold" x="50%25" y="50%25" text-anchor="middle"%3E📹 No Thumbnail%3C/text%3E%3C/svg%3E';
+          }}
         />
         
         {/* Overlay on Hover */}
@@ -86,24 +103,13 @@ export default function VideoCard({ video, onClick }) {
             </div>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-dark-100 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Handle menu
-            }}
-          >
-            <MoreVertical size={18} className="text-dark-600" />
-          </motion.button>
+          {/* Three Dots Menu */}
+          <VideoCardMenu
+            video={video}
+            onView={handleView}
+            onDelete={onDelete}
+          />
         </div>
-
-        {video.description && (
-          <p className="mt-2 text-sm text-dark-600 line-clamp-2">
-            {video.description}
-          </p>
-        )}
       </div>
     </motion.div>
   );

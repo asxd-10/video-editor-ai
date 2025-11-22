@@ -5,6 +5,7 @@ import { Search, Filter, Upload } from 'lucide-react';
 import VideoGrid from '../components/video/VideoGrid';
 import Button from '../components/common/Button';
 import { useVideoStore } from '../stores/videoStore';
+import { videoAPI } from '../services/api';
 
 export default function Library() {
   const navigate = useNavigate();
@@ -15,6 +16,21 @@ export default function Library() {
   useEffect(() => {
     fetchVideos();
   }, [fetchVideos]);
+
+  const handleDelete = async (video) => {
+    if (!confirm(`Are you sure you want to delete "${video.title}"?`)) {
+      return;
+    }
+
+    try {
+      await videoAPI.deleteVideo(video.id);
+      // Refresh the list
+      fetchVideos();
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('Failed to delete video');
+    }
+  };
 
   const filteredVideos = videos.filter((video) => {
     const matchesSearch = video.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -86,6 +102,7 @@ export default function Library() {
             videos={filteredVideos}
             loading={loading}
             onVideoClick={(video) => navigate(`/video/${video.id}`)}
+            onVideoDelete={handleDelete}
           />
         </motion.div>
       </div>

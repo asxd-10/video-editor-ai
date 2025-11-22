@@ -18,82 +18,49 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 router = APIRouter()
 
-@router.post("/")
-async def upload_video(
-    file: UploadFile = File(...),
-    title: str = Form(None),
-    description: str = Form(None),
+@router.get("/")
+async def list_videos(
+    skip: int = 0,
+    limit: int = 20,
+    status: str = None,
     db: Session = Depends(get_db)
 ):
-    """Upload a complete video file (non-chunked)"""
-    try:
-        # Validate file extension
-        file_ext = Path(file.filename).suffix.lower()
-        if file_ext not in settings.ALLOWED_VIDEO_EXTENSIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid file type. Allowed: {settings.ALLOWED_VIDEO_EXTENSIONS}"
-            )
+    """List all videos with pagination"""
+    query = db.query(Video).filter(Video.deleted_at.is_(None))
+    
+    if status:
+        query = query.filter(Video.status == status)
+    
+    total = query.count()
+    videos = query.order_by(Video.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # Build response with thumbnails from assets
+    video_list = []
+    for v in videos:
+        # Get first thumbnail from assets
+        thumbnail = None
+        for asset in v.assets:
+            if asset.asset_type.value == "thumbnail" and asset.status == "ready":
+                relative_path = Path(asset.file_path).relative_to(settings.BASE_STORAGE_PATH)
+                thumbnail = f"/storage/{relative_path}"
+                break
         
-        # Validate file size
-        file.file.seek(0, 2)
-        file_size = file.file.tell()
-        file.file.seek(0)
-        
-        max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-        if file_size > max_size:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large. Max size: {settings.MAX_UPLOAD_SIZE_MB}MB"
-            )
-        
-        # Generate unique video ID and filename
-        video_id = str(uuid.uuid4())
-        unique_filename = f"{datetime.utcnow().timestamp()}_{file.filename}"
-        
-        # Save file
-        file_path = StorageService.save_upload(file.file, video_id, unique_filename)
-        logger.info(f"File saved: {file_path}")
-        
-        # Create video record
-        video = Video(
-            id=video_id,
-            filename=unique_filename,
-            original_filename=file.filename,
-            file_extension=file_ext,
-            mime_type=file.content_type,
-            file_size=file_size,
-            original_path=file_path,
-            status=VideoStatus.UPLOAD_COMPLETE,
-            title=title or file.filename,
-            description=description,
-            upload_completed_at=datetime.utcnow().isoformat()
-        )
-        db.add(video)
-        
-        # Calculate checksum
-        video.checksum_md5 = VideoProcessor.calculate_md5(file_path)
-        db.commit()
-        db.refresh(video)
-        
-        logger.info(f"Video uploaded: {video.id}")
-        
-        # Trigger processing
-        process_video_task.delay(video.id)
-        
-        return {
-            "video_id": video.id,
-            "filename": video.original_filename,
-            "status": video.status,
-            "file_size": video.file_size,
-            "message": "Upload successful. Processing started."
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Upload failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        video_list.append({
+            "id": v.id,
+            "title": v.title,
+            "filename": v.original_filename,
+            "status": v.status.value,  # Convert enum to string
+            "duration": v.duration_seconds,
+            "created_at": v.created_at,
+            "thumbnail": thumbnail
+        })
+    
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "videos": video_list
+    }
 
 @router.post("/chunk")
 async def upload_chunk(
@@ -281,23 +248,32 @@ async def list_videos(
     total = query.count()
     videos = query.order_by(Video.created_at.desc()).offset(skip).limit(limit).all()
     
+    # Build response with thumbnails from assets
+    video_list = []
+    for v in videos:
+        # Get first thumbnail from assets
+        thumbnail = None
+        for asset in v.assets:
+            if asset.asset_type.value == "thumbnail" and asset.status == "ready":
+                relative_path = Path(asset.file_path).relative_to(settings.BASE_STORAGE_PATH)
+                thumbnail = f"/storage/{relative_path}"
+                break
+        
+        video_list.append({
+            "id": v.id,
+            "title": v.title,
+            "filename": v.original_filename,
+            "status": v.status.value,  # Convert enum to string
+            "duration": v.duration_seconds,
+            "created_at": v.created_at,
+            "thumbnail": thumbnail
+        })
+    
     return {
         "total": total,
         "skip": skip,
         "limit": limit,
-        "videos": [
-            {
-                "id": v.id,
-                "title": v.title,
-                "filename": v.original_filename,
-                "status": v.status,
-                "duration": v.duration_seconds,
-                "created_at": v.created_at,
-                "thumbnail": f"/storage/processed/{v.id}/thumbnails/thumb_01.jpg" 
-                            if v.status == VideoStatus.READY else None
-            }
-            for v in videos
-        ]
+        "videos": video_list
     }
 
 @router.delete("/{video_id}")

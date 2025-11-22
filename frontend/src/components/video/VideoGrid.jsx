@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import VideoCard from './VideoCard';
 
-export default function VideoGrid({ videos, onVideoClick, loading }) {
+export default function VideoGrid({ videos, onVideoClick, onVideoDelete, loading }) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -47,7 +47,11 @@ export default function VideoGrid({ videos, onVideoClick, loading }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.05 }}
         >
-          <VideoCard video={video} onClick={onVideoClick} />
+          <VideoCard 
+            video={video} 
+            onClick={onVideoClick}
+            onDelete={onVideoDelete}
+          />
         </motion.div>
       ))}
     </div>
