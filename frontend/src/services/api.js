@@ -79,6 +79,18 @@ export const videoAPI = {
 
   // Delete video
   deleteVideo: (videoId) => api.delete(`/api/videos/${videoId}`),
+
+  // Transcription
+  startTranscription: (videoId) => api.post(`/api/videos/${videoId}/transcribe`),
+  getTranscript: (videoId) => api.get(`/api/videos/${videoId}/transcript`),
+  getTranscriptStatus: (videoId) => api.get(`/api/videos/${videoId}/transcript/status`),
+
+  // Analysis
+  startAnalysis: (videoId) => api.post(`/api/videos/${videoId}/analyze`),
+
+  // Clip Candidates
+  getCandidates: (videoId) => api.get(`/api/videos/${videoId}/candidates`),
+  generateCandidates: (videoId) => api.post(`/api/videos/${videoId}/candidates`),
 };
 
 export default api;

@@ -158,4 +158,55 @@ def process_video_task(self, video_id: str):
     finally:
         db.close()
 
-import os  # Add this import
+import os
+
+@celery_app.task(bind=True, max_retries=3)
+def transcribe_video_task(self, video_id: str):
+    """Transcribe video using Whisper"""
+    from app.services.transcription_service import TranscriptionService
+    
+    try:
+        service = TranscriptionService()
+        result = service.transcribe_video(video_id)
+        logger.info(f"Transcription task completed for {video_id}")
+        return result
+    except Exception as e:
+        logger.error(f"Transcription task failed for {video_id}: {e}")
+        raise self.retry(exc=e, countdown=60)
+
+@celery_app.task(bind=True, max_retries=3)
+def analyze_video_task(self, video_id: str):
+    """Analyze video: silence detection + scene detection"""
+    from app.services.analysis_service import AnalysisService
+    from app.services.transcription_service import TranscriptionService
+    from pathlib import Path
+    
+    db = SessionLocal()
+    try:
+        video = db.query(Video).filter(Video.id == video_id).first()
+        if not video:
+            raise ValueError(f"Video {video_id} not found")
+        
+        # Get audio path (extract if needed)
+        transcription_service = TranscriptionService()
+        audio_path = transcription_service._extract_audio(video.original_path, video_id)
+        
+        # Run analysis
+        analysis_service = AnalysisService()
+        result = analysis_service.analyze_video(
+            video_id,
+            video.original_path,
+            str(audio_path)
+        )
+        
+        # Store in video.analysis_metadata
+        video.analysis_metadata = result
+        db.commit()
+        
+        logger.info(f"Analysis task completed for {video_id}")
+        return result
+    except Exception as e:
+        logger.error(f"Analysis task failed for {video_id}: {e}")
+        raise self.retry(exc=e, countdown=60)
+    finally:
+        db.close()

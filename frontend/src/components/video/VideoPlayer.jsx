@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Play, 
@@ -14,8 +14,19 @@ import {
 import { formatDuration } from '../../utils/formatters';
 import clsx from 'clsx';
 
-export default function VideoPlayer({ src, poster, autoPlay = false, className }) {
+const VideoPlayer = forwardRef(function VideoPlayer({ src, poster, autoPlay = false, className }, ref) {
   const videoRef = useRef(null);
+  
+  // Expose video element via ref
+  useEffect(() => {
+    if (ref) {
+      if (typeof ref === 'function') {
+        ref(videoRef.current);
+      } else {
+        ref.current = videoRef.current;
+      }
+    }
+  }, [ref]);
   const containerRef = useRef(null);
   const progressRef = useRef(null);
   
@@ -341,4 +352,6 @@ export default function VideoPlayer({ src, poster, autoPlay = false, className }
       </AnimatePresence>
     </div>
   );
-}
+});
+
+export default VideoPlayer;
