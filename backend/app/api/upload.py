@@ -10,6 +10,8 @@ from app.config import get_settings
 from datetime import datetime
 from pathlib import Path
 import magic
+import uuid
+from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,9 +25,7 @@ async def upload_video(
     description: str = Form(None),
     db: Session = Depends(get_db)
 ):
-    """
-    Upload a complete video file (non-chunked)
-    """
+    """Upload a complete video file (non-chunked)"""
     try:
         # Validate file extension
         file_ext = Path(file.filename).suffix.lower()
@@ -36,9 +36,9 @@ async def upload_video(
             )
         
         # Validate file size
-        file.file.seek(0, 2)  # Seek to end
+        file.file.seek(0, 2)
         file_size = file.file.tell()
-        file.file.seek(0)  # Reset
+        file.file.seek(0)
         
         max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
         if file_size > max_size:
@@ -47,47 +47,39 @@ async def upload_video(
                 detail=f"File too large. Max size: {settings.MAX_UPLOAD_SIZE_MB}MB"
             )
         
+        # Generate unique video ID and filename
+        video_id = str(uuid.uuid4())
+        unique_filename = f"{datetime.utcnow().timestamp()}_{file.filename}"
+        
+        # Save file
+        file_path = StorageService.save_upload(file.file, video_id, unique_filename)
+        logger.info(f"File saved: {file_path}")
+        
         # Create video record
         video = Video(
-            filename=f"{datetime.utcnow().timestamp()}_{file.filename}",
+            id=video_id,
+            filename=unique_filename,
             original_filename=file.filename,
             file_extension=file_ext,
             mime_type=file.content_type,
             file_size=file_size,
-            status=VideoStatus.UPLOADING,
+            original_path=file_path,
+            status=VideoStatus.UPLOAD_COMPLETE,
             title=title or file.filename,
-            description=description
+            description=description,
+            upload_completed_at=datetime.utcnow().isoformat()
         )
         db.add(video)
+        
+        # Calculate checksum
+        video.checksum_md5 = VideoProcessor.calculate_md5(file_path)
         db.commit()
         db.refresh(video)
         
-        logger.info(f"Created video record: {video.id}")
-        
-        # Save file
-        try:
-            file_path = StorageService.save_upload(file.file, video.id, video.filename)
-            video.original_path = file_path
-            
-            # Calculate checksum
-            video.checksum_md5 = VideoProcessor.calculate_md5(file_path)
-            
-            video.status = VideoStatus.UPLOAD_COMPLETE
-            video.upload_completed_at = datetime.utcnow().isoformat()
-            db.commit()
-            
-            logger.info(f"File saved: {file_path}")
-            
-        except Exception as e:
-            logger.error(f"File save failed: {str(e)}")
-            video.status = VideoStatus.FAILED
-            video.error_message = f"Upload failed: {str(e)}"
-            db.commit()
-            raise HTTPException(status_code=500, detail="File save failed")
+        logger.info(f"Video uploaded: {video.id}")
         
         # Trigger processing
         process_video_task.delay(video.id)
-        logger.info(f"Processing task queued for {video.id}")
         
         return {
             "video_id": video.id,
