@@ -1,0 +1,326 @@
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.video import Video, VideoStatus, UploadChunk
+from app.services.video_processor import VideoProcessor
+from app.services.storage import StorageService
+from app.workers.tasks import process_video_task
+from app.config import get_settings
+from datetime import datetime
+from pathlib import Path
+import magic
+import logging
+
+logger = logging.getLogger(__name__)
+settings = get_settings()
+router = APIRouter()
+
+@router.post("/")
+async def upload_video(
+    file: UploadFile = File(...),
+    title: str = Form(None),
+    description: str = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload a complete video file (non-chunked)
+    """
+    try:
+        # Validate file extension
+        file_ext = Path(file.filename).suffix.lower()
+        if file_ext not in settings.ALLOWED_VIDEO_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type. Allowed: {settings.ALLOWED_VIDEO_EXTENSIONS}"
+            )
+        
+        # Validate file size
+        file.file.seek(0, 2)  # Seek to end
+        file_size = file.file.tell()
+        file.file.seek(0)  # Reset
+        
+        max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+        if file_size > max_size:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Max size: {settings.MAX_UPLOAD_SIZE_MB}MB"
+            )
+        
+        # Create video record
+        video = Video(
+            filename=f"{datetime.utcnow().timestamp()}_{file.filename}",
+            original_filename=file.filename,
+            file_extension=file_ext,
+            mime_type=file.content_type,
+            file_size=file_size,
+            status=VideoStatus.UPLOADING,
+            title=title or file.filename,
+            description=description
+        )
+        db.add(video)
+        db.commit()
+        db.refresh(video)
+        
+        logger.info(f"Created video record: {video.id}")
+        
+        # Save file
+        try:
+            file_path = StorageService.save_upload(file.file, video.id, video.filename)
+            video.original_path = file_path
+            
+            # Calculate checksum
+            video.checksum_md5 = VideoProcessor.calculate_md5(file_path)
+            
+            video.status = VideoStatus.UPLOAD_COMPLETE
+            video.upload_completed_at = datetime.utcnow().isoformat()
+            db.commit()
+            
+            logger.info(f"File saved: {file_path}")
+            
+        except Exception as e:
+            logger.error(f"File save failed: {str(e)}")
+            video.status = VideoStatus.FAILED
+            video.error_message = f"Upload failed: {str(e)}"
+            db.commit()
+            raise HTTPException(status_code=500, detail="File save failed")
+        
+        # Trigger processing
+        process_video_task.delay(video.id)
+        logger.info(f"Processing task queued for {video.id}")
+        
+        return {
+            "video_id": video.id,
+            "filename": video.original_filename,
+            "status": video.status,
+            "file_size": video.file_size,
+            "message": "Upload successful. Processing started."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/chunk")
+async def upload_chunk(
+    video_id: str = Form(...),
+    chunk_number: int = Form(...),
+    total_chunks: int = Form(...),
+    filename: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload video in chunks (for large files)
+    """
+    try:
+        # Get or create video record
+        video = db.query(Video).filter(Video.id == video_id).first()
+        
+        if not video:
+            # First chunk - create video record
+            video = Video(
+                id=video_id,
+                filename=filename,
+                original_filename=filename,
+                file_extension=Path(filename).suffix.lower(),
+                status=VideoStatus.UPLOADING,
+                file_size=0  # Will be updated when complete
+            )
+            db.add(video)
+            db.commit()
+        
+        # Read chunk
+        chunk_data = await file.read()
+        
+        # Save chunk
+        chunk_path = StorageService.save_chunk(chunk_data, video_id, chunk_number)
+        
+        # Record chunk
+        chunk_record = UploadChunk(
+            video_id=video_id,
+            chunk_number=chunk_number,
+            chunk_size=len(chunk_data),
+            checksum=VideoProcessor.calculate_md5(chunk_path)
+        )
+        db.add(chunk_record)
+        db.commit()
+        
+        logger.info(f"Chunk {chunk_number}/{total_chunks} saved for {video_id}")
+        
+        # Check if all chunks received
+        uploaded_chunks = db.query(UploadChunk).filter(
+            UploadChunk.video_id == video_id
+        ).count()
+        
+        if uploaded_chunks == total_chunks:
+            # Assemble chunks
+            logger.info(f"All chunks received for {video_id}. Assembling...")
+            
+            try:
+                final_path = StorageService.assemble_chunks(
+                    video_id, 
+                    total_chunks,
+                    video.filename
+                )
+                
+                video.original_path = final_path
+                video.file_size = Path(final_path).stat().st_size
+                video.checksum_md5 = VideoProcessor.calculate_md5(final_path)
+                video.status = VideoStatus.UPLOAD_COMPLETE
+                video.upload_completed_at = datetime.utcnow().isoformat()
+                db.commit()
+                
+                # Trigger processing
+                process_video_task.delay(video_id)
+                
+                return {
+                    "video_id": video_id,
+                    "status": "complete",
+                    "message": "All chunks received. Processing started."
+                }
+                
+            except Exception as e:
+                video.status = VideoStatus.FAILED
+                video.error_message = f"Chunk assembly failed: {str(e)}"
+                db.commit()
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        return {
+            "video_id": video_id,
+            "chunk_number": chunk_number,
+            "total_chunks": total_chunks,
+            "uploaded_chunks": uploaded_chunks,
+            "status": "in_progress"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Chunk upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{video_id}")
+async def get_video(video_id: str, db: Session = Depends(get_db)):
+    """Get video details and all assets"""
+    video = db.query(Video).filter(Video.id == video_id).first()
+    
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    # Get all assets
+    assets = {}
+    for asset in video.assets:
+        if asset.status == "ready":
+            # Convert absolute path to URL path
+            relative_path = Path(asset.file_path).relative_to(settings.BASE_STORAGE_PATH)
+            assets[asset.asset_type.value] = {
+                "url": f"/storage/{relative_path}",
+                "width": asset.width,
+                "height": asset.height,
+                "file_size": asset.file_size
+            }
+    
+    # Get thumbnails
+    thumbnails = [
+        f"/storage/{Path(asset.file_path).relative_to(settings.BASE_STORAGE_PATH)}"
+        for asset in video.assets 
+        if asset.asset_type.value == "thumbnail" and asset.status == "ready"
+    ]
+    
+    return {
+        "id": video.id,
+        "title": video.title,
+        "description": video.description,
+        "filename": video.original_filename,
+        "status": video.status,
+        "file_size": video.file_size,
+        "duration": video.duration_seconds,
+        "resolution": f"{video.width}x{video.height}" if video.width else None,
+        "fps": video.fps,
+        "aspect_ratio": video.aspect_ratio,
+        "has_audio": video.has_audio,
+        "codec": video.video_codec,
+        "created_at": video.created_at,
+        "processing_started_at": video.processing_started_at,
+        "processing_completed_at": video.processing_completed_at,
+        "assets": assets,
+        "thumbnails": thumbnails,
+        "error": video.error_message
+    }
+
+@router.get("/{video_id}/logs")
+async def get_processing_logs(video_id: str, db: Session = Depends(get_db)):
+    """Get processing logs for debugging"""
+    video = db.query(Video).filter(Video.id == video_id).first()
+    
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    logs = [
+        {
+            "step": log.step,
+            "status": log.status,
+            "message": log.message,
+            "started_at": log.started_at,
+            "completed_at": log.completed_at,
+            "error": log.error_details
+        }
+        for log in video.processing_logs
+    ]
+    
+    return {"video_id": video_id, "logs": logs}
+
+@router.get("/")
+async def list_videos(
+    skip: int = 0,
+    limit: int = 20,
+    status: str = None,
+    db: Session = Depends(get_db)
+):
+    """List all videos with pagination"""
+    query = db.query(Video).filter(Video.deleted_at.is_(None))
+    
+    if status:
+        query = query.filter(Video.status == status)
+    
+    total = query.count()
+    videos = query.order_by(Video.created_at.desc()).offset(skip).limit(limit).all()
+    
+    return {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "videos": [
+            {
+                "id": v.id,
+                "title": v.title,
+                "filename": v.original_filename,
+                "status": v.status,
+                "duration": v.duration_seconds,
+                "created_at": v.created_at,
+                "thumbnail": f"/storage/processed/{v.id}/thumbnails/thumb_01.jpg" 
+                            if v.status == VideoStatus.READY else None
+            }
+            for v in videos
+        ]
+    }
+
+@router.delete("/{video_id}")
+async def delete_video(video_id: str, db: Session = Depends(get_db)):
+    """Soft delete a video"""
+    video = db.query(Video).filter(Video.id == video_id).first()
+    
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    video.deleted_at = datetime.utcnow().isoformat()
+    video.status = VideoStatus.ARCHIVED
+    db.commit()
+    
+    # Optionally, physically delete files
+    # StorageService.delete_video(video_id)
+    
+    return {"message": "Video deleted successfully"}

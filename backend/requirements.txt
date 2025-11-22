@@ -1,0 +1,30 @@
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.25
+alembic==1.13.1
+
+# Task Queue
+celery==5.3.6
+redis==5.0.1
+
+# Video Processing
+ffmpeg-python==0.2.0
+pillow==10.2.0
+
+# Utilities
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# Monitoring & Logging
+python-json-logger==2.0.7
+
+# WebSockets (for real-time updates)
+websockets==12.0
+
+# Validation
+python-magic==0.4.27  # MIME type detection

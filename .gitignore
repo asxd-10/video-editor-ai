@@ -1,0 +1,47 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+backend/.Python
+backend/*.so
+backend/*.egg-info/
+backend/dist/
+backend/build/
+
+# Database
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+
+# Storage (uploaded files)
+storage/
+
+# Environment
+.env
+backend/.env
+frontend/.env
+*.env.local
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+backend/app.log
