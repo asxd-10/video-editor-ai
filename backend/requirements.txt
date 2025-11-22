@@ -29,4 +29,4 @@ websockets==12.0
 # Validation
 python-magic==0.4.27  # MIME type detection
 
-ffmpeg
+# Note: ffmpeg is installed as a system package via nixPkgs

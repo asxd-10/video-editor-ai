@@ -62,6 +62,100 @@ async def list_videos(
         "videos": video_list
     }
 
+@router.post("/")
+async def upload_video(
+    file: UploadFile = File(...),
+    title: str = Form(None),
+    description: str = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload a single video file (for smaller files)
+    """
+    try:
+        # Generate video ID
+        video_id = str(uuid.uuid4())
+        
+        # Validate file
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file provided")
+        
+        # Check file extension
+        file_ext = Path(file.filename).suffix.lower()
+        if file_ext not in settings.ALLOWED_VIDEO_EXTENSIONS:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"File type not allowed. Allowed: {settings.ALLOWED_VIDEO_EXTENSIONS}"
+            )
+        
+        # Check MIME type
+        file_content = await file.read()
+        await file.seek(0)  # Reset file pointer
+        
+        mime_type = magic.from_buffer(file_content, mime=True)
+        if mime_type not in settings.ALLOWED_MIME_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"MIME type not allowed: {mime_type}"
+            )
+        
+        # Save file FIRST (before creating DB record)
+        final_path = StorageService.save_upload(
+            file.file,
+            video_id,
+            file.filename
+        )
+        
+        # Get file size
+        file_size = Path(final_path).stat().st_size
+        
+        # Create video record WITH original_path
+        video = Video(
+            id=video_id,
+            filename=file.filename,
+            original_filename=file.filename,
+            file_extension=file_ext,
+            mime_type=mime_type,
+            status=VideoStatus.UPLOAD_COMPLETE,
+            title=title or file.filename,
+            description=description,
+            file_size=file_size,
+            original_path=final_path,
+            checksum_md5=VideoProcessor.calculate_md5(final_path),
+            upload_completed_at=datetime.utcnow().isoformat()
+        )
+        db.add(video)
+        db.commit()
+        
+        # Trigger processing
+        process_video_task.delay(video_id)
+        
+        logger.info(f"Video uploaded: {video_id} ({video.file_size} bytes)")
+        
+        return {
+            "video_id": video_id,
+            "filename": video.original_filename,
+            "status": video.status.value,
+            "file_size": video.file_size,
+            "message": "Upload complete. Processing started."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Upload failed: {str(e)}")
+        # Clean up file if it was saved but DB insert failed
+        try:
+            if 'final_path' in locals() and Path(final_path).exists():
+                Path(final_path).unlink()
+                # Also try to remove the directory if empty
+                video_dir = Path(final_path).parent
+                if video_dir.exists() and not any(video_dir.iterdir()):
+                    video_dir.rmdir()
+        except:
+            pass
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/chunk")
 async def upload_chunk(
     video_id: str = Form(...),
@@ -231,50 +325,6 @@ async def get_processing_logs(video_id: str, db: Session = Depends(get_db)):
     ]
     
     return {"video_id": video_id, "logs": logs}
-
-@router.get("/")
-async def list_videos(
-    skip: int = 0,
-    limit: int = 20,
-    status: str = None,
-    db: Session = Depends(get_db)
-):
-    """List all videos with pagination"""
-    query = db.query(Video).filter(Video.deleted_at.is_(None))
-    
-    if status:
-        query = query.filter(Video.status == status)
-    
-    total = query.count()
-    videos = query.order_by(Video.created_at.desc()).offset(skip).limit(limit).all()
-    
-    # Build response with thumbnails from assets
-    video_list = []
-    for v in videos:
-        # Get first thumbnail from assets
-        thumbnail = None
-        for asset in v.assets:
-            if asset.asset_type.value == "thumbnail" and asset.status == "ready":
-                relative_path = Path(asset.file_path).relative_to(settings.BASE_STORAGE_PATH)
-                thumbnail = f"/storage/{relative_path}"
-                break
-        
-        video_list.append({
-            "id": v.id,
-            "title": v.title,
-            "filename": v.original_filename,
-            "status": v.status.value,  # Convert enum to string
-            "duration": v.duration_seconds,
-            "created_at": v.created_at,
-            "thumbnail": thumbnail
-        })
-    
-    return {
-        "total": total,
-        "skip": skip,
-        "limit": limit,
-        "videos": video_list
-    }
 
 @router.delete("/{video_id}")
 async def delete_video(video_id: str, db: Session = Depends(get_db)):
