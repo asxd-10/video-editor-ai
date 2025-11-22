@@ -45,3 +45,11 @@ Thumbs.db
 # Logs
 *.log
 backend/app.log
+
+*.env
+secrets.json
+*.pem
+*.key
+frontend/.env.production
+supabase/.branches
+supabase/.temp
