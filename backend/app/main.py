@@ -5,6 +5,7 @@ from app.api import upload
 from app.database import engine, Base
 from app.config import get_settings
 import logging
+import os
 
 # Setup logging
 logging.basicConfig(
@@ -23,16 +24,21 @@ app = FastAPI(
     debug=settings.DEBUG
 )
 
-# CORS
+# Dynamic CORS
+origins = settings.ALLOWED_ORIGINS
+if not origins:
+    # Allow all origins in development
+    origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Serve static files (videos, thumbnails)
+# Serve static files
 app.mount("/storage", StaticFiles(directory=str(settings.BASE_STORAGE_PATH)), name="storage")
 
 # Include routers
@@ -43,7 +49,8 @@ def root():
     return {
         "app": settings.APP_NAME,
         "version": settings.VERSION,
-        "status": "running"
+        "status": "running",
+        "environment": settings.ENVIRONMENT
     }
 
 @app.get("/health")
