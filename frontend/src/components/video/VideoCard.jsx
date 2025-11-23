@@ -25,7 +25,7 @@ export default function VideoCard({ video, onClick, onDelete }) {
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -8 }}
       transition={{ duration: 0.2 }}
-      className="card p-0 overflow-hidden"
+      className="card p-0 overflow-visible"
     >
       {/* Thumbnail */}
       <div 

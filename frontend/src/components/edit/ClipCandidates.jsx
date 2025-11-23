@@ -4,7 +4,7 @@ import { formatDuration } from '../../utils/formatters';
 import Button from '../common/Button';
 import Badge from '../common/Badge';
 
-export default function ClipCandidates({ candidates, onSelect, videoRef }) {
+export default function ClipCandidates({ candidates, onSelect, onSelectClip, videoRef }) {
   const handlePlay = (candidate) => {
     if (videoRef?.current) {
       videoRef.current.currentTime = candidate.start_time;
@@ -73,11 +73,14 @@ export default function ClipCandidates({ candidates, onSelect, videoRef }) {
                 >
                   Play
                 </Button>
-                {onSelect && (
+                {(onSelect || onSelectClip) && (
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => onSelect(candidate)}
+                    onClick={() => {
+                      if (onSelectClip) onSelectClip(candidate.id);
+                      if (onSelect) onSelect(candidate);
+                    }}
                   >
                     Select
                   </Button>

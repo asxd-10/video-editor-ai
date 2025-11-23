@@ -87,7 +87,7 @@ export default function AIActions({ videoId, onTranscribe, onAnalyze, onGenerate
               size="sm"
               icon={loading.analyze ? Loader2 : Sparkles}
               onClick={handleAnalyze}
-              disabled={loading.analyze || analysisStatus === 'queued' || transcriptStatus !== 'complete'}
+              disabled={loading.analyze || analysisStatus === 'queued'}
             >
               {loading.analyze ? 'Starting...' : 'Analyze'}
             </Button>
