@@ -90,6 +90,12 @@ class Video(Base):
     # ai_edit_jobs = relationship("AIEditJob", back_populates="video", cascade="all, delete-orphan")
     # retention_analysis = relationship("RetentionAnalysis", back_populates="video", uselist=False, cascade="all, delete-orphan")
     
+    # Video Editing Relationships
+    transcript = relationship("Transcript", back_populates="video", uselist=False, cascade="all, delete-orphan")
+    clip_candidates = relationship("ClipCandidate", back_populates="video", cascade="all, delete-orphan")
+    edit_jobs = relationship("EditJob", back_populates="video", cascade="all, delete-orphan")
+    retention_analysis = relationship("RetentionAnalysis", back_populates="video", uselist=False, cascade="all, delete-orphan")
+    
     # Indexes for common queries
     __table_args__ = (
         Index('idx_video_status', 'status'),
