@@ -43,7 +43,7 @@ export default function VideoCardMenu({ video, onView, onDelete }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-apple-lg border border-dark-200 py-2 z-50"
+            className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-apple-lg border border-dark-200 py-2 z-[100]"
           >
             <button
               onClick={(e) => {

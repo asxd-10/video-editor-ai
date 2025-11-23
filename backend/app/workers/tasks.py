@@ -1,6 +1,7 @@
 from app.workers.celery_app import celery_app
 from app.database import SessionLocal
 from app.models.video import Video, VideoAsset, ProcessingLog, VideoStatus, VideoQuality
+from app.models.edit_job import EditJob, EditJobStatus
 from app.services.video_processor import VideoProcessor
 from app.services.storage import StorageService
 from datetime import datetime
@@ -207,6 +208,73 @@ def analyze_video_task(self, video_id: str):
         return result
     except Exception as e:
         logger.error(f"Analysis task failed for {video_id}: {e}")
+        raise self.retry(exc=e, countdown=60)
+    finally:
+        db.close()
+
+@celery_app.task(bind=True, max_retries=3)
+def create_edit_job_task(self, job_id: str):
+    """
+    Process an edit job: apply edits and render video.
+    
+    Args:
+        job_id: EditJob ID
+    """
+    from app.services.editor import EditorService
+    
+    db = SessionLocal()
+    start_time = datetime.utcnow()
+    
+    try:
+        # Load edit job
+        edit_job = db.query(EditJob).filter(EditJob.id == job_id).first()
+        if not edit_job:
+            logger.error(f"EditJob {job_id} not found")
+            return
+        
+        logger.info(f"Starting edit job {job_id} for video {edit_job.video_id}")
+        
+        # Update status
+        edit_job.status = EditJobStatus.PROCESSING
+        edit_job.started_at = start_time.isoformat()
+        db.commit()
+        
+        # Create editor service
+        editor = EditorService()
+        
+        # Apply edits
+        result = editor.create_edit(
+            video_id=edit_job.video_id,
+            clip_candidate_id=edit_job.clip_candidate_id,
+            edit_options=edit_job.edit_options
+        )
+        
+        # Update job with output paths
+        edit_job.output_paths = result["output_paths"]
+        edit_job.status = EditJobStatus.COMPLETED
+        edit_job.completed_at = datetime.utcnow().isoformat()
+        db.commit()
+        
+        logger.info(f"Edit job {job_id} completed successfully")
+        return {
+            "job_id": job_id,
+            "output_paths": result["output_paths"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Edit job {job_id} failed: {e}")
+        
+        # Update job status
+        try:
+            edit_job = db.query(EditJob).filter(EditJob.id == job_id).first()
+            if edit_job:
+                edit_job.status = EditJobStatus.FAILED
+                edit_job.error_message = str(e)[:500]  # Truncate to 500 chars
+                edit_job.completed_at = datetime.utcnow().isoformat()
+                db.commit()
+        except:
+            pass
+        
         raise self.retry(exc=e, countdown=60)
     finally:
         db.close()

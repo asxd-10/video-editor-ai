@@ -291,17 +291,25 @@ async def get_video(video_id: str, db: Session = Depends(get_db)):
         "status": video.status,
         "file_size": video.file_size,
         "duration": video.duration_seconds,
+        "duration_seconds": video.duration_seconds,
+        "width": video.width,
+        "height": video.height,
         "resolution": f"{video.width}x{video.height}" if video.width else None,
         "fps": video.fps,
         "aspect_ratio": video.aspect_ratio,
         "has_audio": video.has_audio,
         "codec": video.video_codec,
+        "video_codec": video.video_codec,
+        "audio_codec": video.audio_codec,
         "created_at": video.created_at,
         "processing_started_at": video.processing_started_at,
         "processing_completed_at": video.processing_completed_at,
         "assets": assets,
         "thumbnails": thumbnails,
-        "error": video.error_message
+        "error": video.error_message,
+        "analysis_metadata": video.analysis_metadata,  # Include analysis metadata
+        "original_path": video.original_path,
+        "thumbnail": thumbnails[0] if thumbnails else None
     }
 
 @router.get("/{video_id}/logs")

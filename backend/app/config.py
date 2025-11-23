@@ -2,6 +2,10 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file early
+load_dotenv()
 
 class Settings(BaseSettings):
     # Application
@@ -38,9 +42,32 @@ class Settings(BaseSettings):
     THUMBNAIL_COUNT: int = 5
     THUMBNAIL_HEIGHT: int = 180
     
-    # Database
-    DATABASE_URL: str = "sqlite:///./video_platform.db"
+    # Database - Supabase PostgreSQL
+    # Use individual components (Supabase recommended) or full DATABASE_URL
+    # Note: .env file uses lowercase keys (user, password, host, port, dbname)
+    DB_USER: str = ""
+    DB_PASSWORD: str = ""
+    DB_HOST: str = ""
+    DB_PORT: str = "5432"
+    DB_NAME: str = "postgres"
+    
+    # Full connection string (alternative to individual components)
+    DATABASE_URL: str = ""
+    
     DB_ECHO: bool = False
+    
+    def get_database_url(self) -> str:
+        """Construct database URL from components or use DATABASE_URL"""
+        # If DATABASE_URL is explicitly set, use it
+        if self.DATABASE_URL and not self.DATABASE_URL.startswith("sqlite"):
+            return self.DATABASE_URL
+        
+        # Build from individual components (Supabase session pooler)
+        if self.DB_USER and self.DB_PASSWORD and self.DB_HOST:
+            return f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}?sslmode=require"
+        
+        # Fallback to SQLite for local dev
+        return "sqlite:///./video_platform.db"
     
     # Redis/Celery
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -55,9 +82,34 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "allow"  # Allow extra fields from .env (user, password, host, port, dbname)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        
+        # Load DB credentials from .env (lowercase keys from Supabase)
+        # Pydantic Settings doesn't auto-load lowercase keys, so we do it manually
+        # .env file uses: user, password, host, port, dbname
+        env_user = os.getenv("user", "")
+        env_password = os.getenv("password", "")
+        env_host = os.getenv("host", "")
+        env_port = os.getenv("port", "")
+        env_dbname = os.getenv("dbname", "")
+        env_database_url = os.getenv("DATABASE_URL", "")
+        
+        # Override with .env values if they exist
+        if env_user:
+            self.DB_USER = env_user
+        if env_password:
+            self.DB_PASSWORD = env_password
+        if env_host:
+            self.DB_HOST = env_host
+        if env_port:
+            self.DB_PORT = env_port
+        if env_dbname:
+            self.DB_NAME = env_dbname
+        if env_database_url:
+            self.DATABASE_URL = env_database_url
         
         # Set up storage paths
         self.UPLOAD_DIR = self.BASE_STORAGE_PATH / "uploads"

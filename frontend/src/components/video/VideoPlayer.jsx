@@ -111,12 +111,17 @@ const VideoPlayer = forwardRef(function VideoPlayer({ src, poster, autoPlay = fa
   };
 
   const handleProgressClick = (e) => {
+    if (!progressRef.current || !videoRef.current || !duration) return;
+    
     const bounds = progressRef.current.getBoundingClientRect();
     const x = e.clientX - bounds.left;
-    const percentage = x / bounds.width;
+    const percentage = Math.max(0, Math.min(1, x / bounds.width));
     const newTime = percentage * duration;
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
+    
+    if (videoRef.current) {
+      videoRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
   };
 
   const handleVolumeChange = (e) => {
@@ -323,13 +328,15 @@ const VideoPlayer = forwardRef(function VideoPlayer({ src, poster, autoPlay = fa
 
               {/* Right Controls */}
               <div className="flex items-center gap-3">
-                {/* Settings */}
+                {/* Settings - Placeholder for future settings menu */}
                 <motion.button
                   whileHover={{ scale: 1.1, rotate: 90 }}
                   whileTap={{ scale: 0.9 }}
                   className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+                  title="Settings (Coming soon)"
+                  disabled
                 >
-                  <Settings size={18} className="text-white" />
+                  <Settings size={18} className="text-white/60" />
                 </motion.button>
 
                 {/* Fullscreen */}

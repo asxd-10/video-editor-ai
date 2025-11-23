@@ -7,6 +7,8 @@ import ProcessingStatus from '../components/video/ProcessingStatus';
 import TranscriptViewer from '../components/edit/TranscriptViewer';
 import ClipCandidates from '../components/edit/ClipCandidates';
 import AIActions from '../components/edit/AIActions';
+import EditJobManager from '../components/edit/EditJobManager';
+import AnalysisInsights from '../components/edit/AnalysisInsights';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import { videoAPI } from '../services/api';
@@ -23,6 +25,7 @@ export default function VideoView() {
   const [transcriptStatus, setTranscriptStatus] = useState('not_found');
   const [candidates, setCandidates] = useState([]);
   const [analysisStatus, setAnalysisStatus] = useState('not_found');
+  const [selectedClipId, setSelectedClipId] = useState(null);
 
   useEffect(() => {
     loadVideo();
@@ -45,6 +48,25 @@ export default function VideoView() {
     try {
       const response = await videoAPI.getVideo(videoId);
       setVideo(response.data);
+      // Update analysis status if metadata exists
+      // analysis_metadata might be a string (JSON) or an object
+      let analysisMetadata = response.data.analysis_metadata;
+      if (typeof analysisMetadata === 'string') {
+        try {
+          analysisMetadata = JSON.parse(analysisMetadata);
+        } catch (e) {
+          console.warn('Failed to parse analysis_metadata:', e);
+          analysisMetadata = null;
+        }
+      }
+      
+      if (analysisMetadata && 
+          (analysisMetadata.silence_segments || 
+           analysisMetadata.scene_timestamps)) {
+        setAnalysisStatus('complete');
+      } else {
+        setAnalysisStatus('not_found');
+      }
     } catch (error) {
       console.error('Failed to load video:', error);
     } finally {
@@ -88,7 +110,8 @@ export default function VideoView() {
       const response = await videoAPI.getCandidates(videoId);
       setCandidates(response.data.candidates || []);
     } catch (error) {
-      console.error('Failed to load candidates:', error);
+      // Any error means no candidates available - this is fine, just set empty
+      setCandidates([]);
     }
   };
 
@@ -106,21 +129,39 @@ export default function VideoView() {
     try {
       await videoAPI.startAnalysis(videoId);
       setAnalysisStatus('queued');
-      // Poll for completion
+      // Poll for completion by checking video metadata
       const interval = setInterval(async () => {
         try {
-          const response = await videoAPI.getCandidates(videoId);
-          if (response.data.count > 0) {
+          const response = await videoAPI.getVideo(videoId);
+          // Parse analysis_metadata if it's a string
+          let analysisMetadata = response.data.analysis_metadata;
+          if (typeof analysisMetadata === 'string') {
+            try {
+              analysisMetadata = JSON.parse(analysisMetadata);
+            } catch (e) {
+              // Not valid JSON yet, keep polling
+              return;
+            }
+          }
+          
+          if (analysisMetadata && 
+              (analysisMetadata.silence_segments || 
+               analysisMetadata.scene_timestamps)) {
             setAnalysisStatus('complete');
+            setVideo(response.data); // Update video state
             clearInterval(interval);
           }
         } catch (e) {
           // Ignore errors while polling
         }
       }, 5000);
+      
+      // Cleanup interval after 5 minutes (safety)
+      setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
     } catch (error) {
       console.error('Failed to start analysis:', error);
       alert('Failed to start analysis');
+      setAnalysisStatus('not_found');
     }
   };
 
@@ -237,8 +278,8 @@ export default function VideoView() {
               </motion.div>
             )}
 
-            {/* Clip Candidates */}
-            {candidates.length > 0 && (
+            {/* Clip Candidates - Optional, only show if they exist */}
+            {candidates.length > 0 ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -247,6 +288,53 @@ export default function VideoView() {
                 <ClipCandidates
                   candidates={candidates}
                   videoRef={videoRef}
+                  onSelectClip={setSelectedClipId}
+                />
+              </motion.div>
+            ) : transcriptStatus === 'complete' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="card p-6"
+              >
+                <p className="text-dark-600 text-center">
+                  No clip candidates yet. Click "Generate" in AI Features to create them.
+                </p>
+              </motion.div>
+            )}
+
+            {/* Analysis Insights */}
+            {video.status === 'ready' && analysisStatus === 'complete' && video.analysis_metadata && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+              >
+                <AnalysisInsights 
+                  analysisMetadata={video.analysis_metadata}
+                  videoDuration={video.duration_seconds}
+                />
+              </motion.div>
+            )}
+
+            {/* Edit Job Manager - Always show, but enable only when video is ready */}
+            {video.status === 'ready' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <EditJobManager
+                  videoId={videoId}
+                  clipCandidateId={selectedClipId || null}
+                  hasAnalysis={analysisStatus === 'complete'}
+                  analysisMetadata={video.analysis_metadata}
+                  videoDuration={video.duration_seconds}
+                  onEditComplete={(jobId) => {
+                    console.log('Edit job completed:', jobId);
+                    // Optionally reload or show notification
+                  }}
                 />
               </motion.div>
             )}

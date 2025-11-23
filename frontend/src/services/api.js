@@ -91,6 +91,16 @@ export const videoAPI = {
   // Clip Candidates
   getCandidates: (videoId) => api.get(`/api/videos/${videoId}/candidates`),
   generateCandidates: (videoId) => api.post(`/api/videos/${videoId}/candidates`),
+
+  // Edit Jobs
+  createEditJob: (videoId, data) => api.post(`/api/videos/${videoId}/edit`, data),
+  getEditJob: (videoId, jobId) => api.get(`/api/videos/${videoId}/edit/${jobId}`),
+  listEditJobs: (videoId) => api.get(`/api/videos/${videoId}/edit`),
+  downloadEditedVideo: (videoId, jobId, aspectRatio = '16:9') => 
+    api.get(`/api/videos/${videoId}/edit/${jobId}/download`, {
+      params: { aspect_ratio: aspectRatio },
+      responseType: 'blob'
+    }),
 };
 
 export default api;
