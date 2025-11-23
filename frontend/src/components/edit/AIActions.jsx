@@ -49,21 +49,31 @@ export default function AIActions({ videoId, onTranscribe, onAnalyze, onGenerate
             <div>
               <p className="text-sm font-medium text-dark-900">Transcription</p>
               <p className="text-xs text-dark-500">
-                {transcriptStatus === 'complete' ? 'Complete' : transcriptStatus === 'queued' ? 'Processing...' : 'Not started'}
+                {transcriptStatus === 'complete' 
+                  ? 'Complete' 
+                  : transcriptStatus === 'queued' 
+                    ? 'Processing with Whisper AI...' 
+                    : 'Not started'}
               </p>
             </div>
           </div>
           {transcriptStatus === 'complete' ? (
-            <Badge className="bg-green-100 text-green-700">Done</Badge>
+            <div className="group relative">
+              <Badge className="bg-green-100 text-green-700 cursor-help">Done</Badge>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-dark-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                Transcribed by Whisper AI (faster-whisper)
+                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-dark-900"></div>
+              </div>
+            </div>
           ) : (
             <Button
               variant="primary"
               size="sm"
-              icon={loading.transcribe ? Loader2 : Mic}
+              icon={transcriptStatus === 'queued' || loading.transcribe ? Loader2 : Mic}
               onClick={handleTranscribe}
               disabled={loading.transcribe || transcriptStatus === 'queued'}
             >
-              {loading.transcribe ? 'Starting...' : 'Transcribe'}
+              {loading.transcribe ? 'Starting...' : transcriptStatus === 'queued' ? 'Processing...' : 'Transcribe'}
             </Button>
           )}
         </div>

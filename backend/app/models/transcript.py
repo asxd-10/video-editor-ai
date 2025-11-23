@@ -8,7 +8,7 @@ class Transcript(Base):
     __tablename__ = "transcripts"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    video_id = Column(String(36), ForeignKey('videos.id'), nullable=False, unique=True)
+    video_id = Column(String, ForeignKey('media.video_id'), nullable=False, unique=True)
     
     # Transcript data: [{start, end, text, confidence, words: [...]}]
     segments = Column(JSON, nullable=False)
@@ -17,5 +17,6 @@ class Transcript(Base):
     
     created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
     
-    video = relationship("Video", back_populates="transcript")
+    # Legacy Video relationship removed - use media relationship
+    media = relationship("Media", back_populates="transcript")
 

@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.api import upload, edit
+from app.api import upload, edit, ai_edit
 from app.database import engine, Base
 from app.config import get_settings
 # Import all models to ensure they're registered with Base
 from app.models import (
     Video, VideoAsset, UploadChunk, ProcessingLog,
-    Transcript, ClipCandidate, EditJob, RetentionAnalysis
+    Transcript, ClipCandidate, EditJob, RetentionAnalysis, AIEditJob
 )
 import logging
 import os
@@ -49,6 +49,7 @@ app.mount("/storage", StaticFiles(directory=str(settings.BASE_STORAGE_PATH)), na
 # Include routers
 app.include_router(upload.router, prefix="/api/videos", tags=["videos"])
 app.include_router(edit.router, prefix="/api/videos", tags=["editing"])
+app.include_router(ai_edit.router, prefix="/api/videos", tags=["ai-editing"])
 
 @app.get("/")
 def root():

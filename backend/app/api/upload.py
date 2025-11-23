@@ -2,7 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.video import Video, VideoStatus, UploadChunk
+from app.models.media import Media, MediaStatus, MediaType
+from app.models.video import UploadChunk  # Keep for chunk tracking
 from app.services.video_processor import VideoProcessor
 from app.services.storage import StorageService
 from app.workers.tasks import process_video_task
@@ -11,7 +12,6 @@ from datetime import datetime
 from pathlib import Path
 import magic
 import uuid
-from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,33 +25,33 @@ async def list_videos(
     status: str = None,
     db: Session = Depends(get_db)
 ):
-    """List all videos with pagination"""
-    query = db.query(Video).filter(Video.deleted_at.is_(None))
+    """List all media with pagination (unified schema)"""
+    query = db.query(Media).filter(Media.deleted_at.is_(None))
     
     if status:
-        query = query.filter(Video.status == status)
+        query = query.filter(Media.status == status)
     
     total = query.count()
-    videos = query.order_by(Video.created_at.desc()).offset(skip).limit(limit).all()
+    media_list = query.order_by(Media.created_at.desc()).offset(skip).limit(limit).all()
     
     # Build response with thumbnails from assets
     video_list = []
-    for v in videos:
+    for m in media_list:
         # Get first thumbnail from assets
         thumbnail = None
-        for asset in v.assets:
+        for asset in m.assets:
             if asset.asset_type.value == "thumbnail" and asset.status == "ready":
                 relative_path = Path(asset.file_path).relative_to(settings.BASE_STORAGE_PATH)
                 thumbnail = f"/storage/{relative_path}"
                 break
         
         video_list.append({
-            "id": v.id,
-            "title": v.title,
-            "filename": v.original_filename,
-            "status": v.status.value,  # Convert enum to string
-            "duration": v.duration_seconds,
-            "created_at": v.created_at,
+            "id": m.video_id,  # Use video_id as the identifier
+            "title": m.title,
+            "filename": m.original_filename or m.filename,
+            "status": m.status,
+            "duration": m.duration_seconds,
+            "created_at": m.created_at,
             "thumbnail": thumbnail
         })
     
@@ -63,6 +63,7 @@ async def list_videos(
     }
 
 @router.post("/")
+@router.post("/upload")  # Alias for convenience
 async def upload_video(
     file: UploadFile = File(...),
     title: str = Form(None),
@@ -109,14 +110,15 @@ async def upload_video(
         # Get file size
         file_size = Path(final_path).stat().st_size
         
-        # Create video record WITH original_path
-        video = Video(
-            id=video_id,
+        # Create media record WITH original_path (unified schema)
+        media = Media(
+            video_id=video_id,
             filename=file.filename,
             original_filename=file.filename,
             file_extension=file_ext,
             mime_type=mime_type,
-            status=VideoStatus.UPLOAD_COMPLETE,
+            media_type=MediaType.VIDEO.value,
+            status=MediaStatus.UPLOAD_COMPLETE.value,
             title=title or file.filename,
             description=description,
             file_size=file_size,
@@ -124,19 +126,19 @@ async def upload_video(
             checksum_md5=VideoProcessor.calculate_md5(final_path),
             upload_completed_at=datetime.utcnow().isoformat()
         )
-        db.add(video)
+        db.add(media)
         db.commit()
         
         # Trigger processing
         process_video_task.delay(video_id)
         
-        logger.info(f"Video uploaded: {video_id} ({video.file_size} bytes)")
+        logger.info(f"Media uploaded: {video_id} ({media.file_size} bytes)")
         
         return {
             "video_id": video_id,
-            "filename": video.original_filename,
-            "status": video.status.value,
-            "file_size": video.file_size,
+            "filename": media.original_filename,
+            "status": media.status,
+            "file_size": media.file_size,
             "message": "Upload complete. Processing started."
         }
         
@@ -169,20 +171,21 @@ async def upload_chunk(
     Upload video in chunks (for large files)
     """
     try:
-        # Get or create video record
-        video = db.query(Video).filter(Video.id == video_id).first()
+        # Get or create media record
+        media = db.query(Media).filter(Media.video_id == video_id).first()
         
-        if not video:
-            # First chunk - create video record
-            video = Video(
-                id=video_id,
+        if not media:
+            # First chunk - create media record
+            media = Media(
+                video_id=video_id,
                 filename=filename,
                 original_filename=filename,
                 file_extension=Path(filename).suffix.lower(),
-                status=VideoStatus.UPLOADING,
+                media_type=MediaType.VIDEO.value,
+                status=MediaStatus.UPLOADING.value,
                 file_size=0  # Will be updated when complete
             )
-            db.add(video)
+            db.add(media)
             db.commit()
         
         # Read chunk
@@ -216,14 +219,14 @@ async def upload_chunk(
                 final_path = StorageService.assemble_chunks(
                     video_id, 
                     total_chunks,
-                    video.filename
+                    media.filename
                 )
                 
-                video.original_path = final_path
-                video.file_size = Path(final_path).stat().st_size
-                video.checksum_md5 = VideoProcessor.calculate_md5(final_path)
-                video.status = VideoStatus.UPLOAD_COMPLETE
-                video.upload_completed_at = datetime.utcnow().isoformat()
+                media.original_path = final_path
+                media.file_size = Path(final_path).stat().st_size
+                media.checksum_md5 = VideoProcessor.calculate_md5(final_path)
+                media.status = MediaStatus.UPLOAD_COMPLETE.value
+                media.upload_completed_at = datetime.utcnow().isoformat()
                 db.commit()
                 
                 # Trigger processing
@@ -236,8 +239,8 @@ async def upload_chunk(
                 }
                 
             except Exception as e:
-                video.status = VideoStatus.FAILED
-                video.error_message = f"Chunk assembly failed: {str(e)}"
+                media.status = MediaStatus.FAILED.value
+                media.error_message = f"Chunk assembly failed: {str(e)}"
                 db.commit()
                 raise HTTPException(status_code=500, detail=str(e))
         
@@ -257,15 +260,15 @@ async def upload_chunk(
 
 @router.get("/{video_id}")
 async def get_video(video_id: str, db: Session = Depends(get_db)):
-    """Get video details and all assets"""
-    video = db.query(Video).filter(Video.id == video_id).first()
+    """Get media details and all assets (unified schema)"""
+    media = db.query(Media).filter(Media.video_id == video_id).first()
     
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
     
     # Get all assets
     assets = {}
-    for asset in video.assets:
+    for asset in media.assets:
         if asset.status == "ready":
             # Convert absolute path to URL path
             relative_path = Path(asset.file_path).relative_to(settings.BASE_STORAGE_PATH)
@@ -279,74 +282,73 @@ async def get_video(video_id: str, db: Session = Depends(get_db)):
     # Get thumbnails
     thumbnails = [
         f"/storage/{Path(asset.file_path).relative_to(settings.BASE_STORAGE_PATH)}"
-        for asset in video.assets 
+        for asset in media.assets 
         if asset.asset_type.value == "thumbnail" and asset.status == "ready"
     ]
     
     return {
-        "id": video.id,
-        "title": video.title,
-        "description": video.description,
-        "filename": video.original_filename,
-        "status": video.status,
-        "file_size": video.file_size,
-        "duration": video.duration_seconds,
-        "duration_seconds": video.duration_seconds,
-        "width": video.width,
-        "height": video.height,
-        "resolution": f"{video.width}x{video.height}" if video.width else None,
-        "fps": video.fps,
-        "aspect_ratio": video.aspect_ratio,
-        "has_audio": video.has_audio,
-        "codec": video.video_codec,
-        "video_codec": video.video_codec,
-        "audio_codec": video.audio_codec,
-        "created_at": video.created_at,
-        "processing_started_at": video.processing_started_at,
-        "processing_completed_at": video.processing_completed_at,
+        "id": media.video_id,  # Use video_id as identifier
+        "title": media.title,
+        "description": media.description,
+        "filename": media.original_filename or media.filename,
+        "status": media.status,
+        "file_size": media.file_size,
+        "duration": media.duration_seconds,
+        "duration_seconds": media.duration_seconds,
+        "width": media.width,
+        "height": media.height,
+        "resolution": f"{media.width}x{media.height}" if media.width else None,
+        "fps": media.fps,
+        "aspect_ratio": media.aspect_ratio,
+        "has_audio": media.has_audio,
+        "codec": media.video_codec,
+        "video_codec": media.video_codec,
+        "audio_codec": media.audio_codec,
+        "created_at": media.created_at,
+        "processing_started_at": media.processing_started_at,
+        "processing_completed_at": media.processing_completed_at,
         "assets": assets,
         "thumbnails": thumbnails,
-        "error": video.error_message,
-        "analysis_metadata": video.analysis_metadata,  # Include analysis metadata
-        "original_path": video.original_path,
+        "error": media.error_message,
+        "analysis_metadata": media.analysis_metadata,  # Include analysis metadata
+        "original_path": media.original_path,
         "thumbnail": thumbnails[0] if thumbnails else None
     }
 
 @router.get("/{video_id}/logs")
 async def get_processing_logs(video_id: str, db: Session = Depends(get_db)):
     """Get processing logs for debugging"""
-    video = db.query(Video).filter(Video.id == video_id).first()
+    media = db.query(Media).filter(Media.video_id == video_id).first()
     
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
     
     logs = [
         {
             "step": log.step,
-            "status": log.status,
+            "level": log.level,  # Use 'level' instead of 'status' (matches unified schema)
             "message": log.message,
-            "started_at": log.started_at,
-            "completed_at": log.completed_at,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
             "error": log.error_details
         }
-        for log in video.processing_logs
+        for log in media.processing_logs
     ]
     
     return {"video_id": video_id, "logs": logs}
 
 @router.delete("/{video_id}")
 async def delete_video(video_id: str, db: Session = Depends(get_db)):
-    """Soft delete a video"""
-    video = db.query(Video).filter(Video.id == video_id).first()
+    """Soft delete media"""
+    media = db.query(Media).filter(Media.video_id == video_id).first()
     
-    if not video:
-        raise HTTPException(status_code=404, detail="Video not found")
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
     
-    video.deleted_at = datetime.utcnow().isoformat()
-    video.status = VideoStatus.ARCHIVED
+    media.deleted_at = datetime.utcnow().isoformat()
+    media.status = MediaStatus.ARCHIVED.value
     db.commit()
     
     # Optionally, physically delete files
     # StorageService.delete_video(video_id)
     
-    return {"message": "Video deleted successfully"}
+    return {"message": "Media deleted successfully"}

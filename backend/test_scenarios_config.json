@@ -1,0 +1,261 @@
+{
+  "scenarios": {
+    "educational_short": {
+      "name": "Educational Video - Short Edit",
+      "description": "Test aggressive cutting for educational content, focusing on key concepts",
+      "story_prompt": {
+        "target_audience": "students",
+        "tone": "educational",
+        "key_message": "Focus on main concepts and examples",
+        "desired_length": "short",
+        "story_arc": {
+          "hook": "Start with a question or problem",
+          "build": "Explain concepts clearly",
+          "climax": "Show practical example",
+          "resolution": "Summarize key takeaways"
+        },
+        "style_preferences": {
+          "pacing": "fast",
+          "transitions": "smooth",
+          "emphasis": "on_examples"
+        }
+      },
+      "summary": {
+        "video_summary": "Educational tutorial explaining a technical concept with examples",
+        "content_type": "tutorial",
+        "main_topics": ["concept explanation", "examples", "practical applications"],
+        "speaker_style": "professional"
+      },
+      "expected_behavior": "Should create a concise edit focusing on key concepts and examples, removing filler",
+      "evaluation_criteria": {
+        "coverage": "20-40% of original",
+        "segment_count": "5-15 segments",
+        "should_preserve": ["key concepts", "examples", "conclusions"],
+        "should_remove": ["filler", "repetition", "long pauses"]
+      }
+    },
+    
+    "vlog_casual": {
+      "name": "Vlog - Casual, Engaging",
+      "description": "Test personality preservation and authentic moment selection",
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "casual",
+        "key_message": "Show personality and authentic moments",
+        "desired_length": "medium",
+        "story_arc": {
+          "hook": "Grab attention in first 3 seconds",
+          "build": "Build connection with audience",
+          "climax": "Main story or revelation",
+          "resolution": "Call to action or reflection"
+        },
+        "style_preferences": {
+          "pacing": "moderate",
+          "transitions": "smooth",
+          "emphasis": "on_personality"
+        }
+      },
+      "summary": {
+        "video_summary": "Casual vlog sharing daily experiences and thoughts",
+        "content_type": "vlog",
+        "main_topics": ["daily life", "personal thoughts", "experiences"],
+        "speaker_style": "casual"
+      },
+      "expected_behavior": "Should preserve authentic moments, remove dead air, maintain casual feel",
+      "evaluation_criteria": {
+        "coverage": "50-70% of original",
+        "segment_count": "8-20 segments",
+        "should_preserve": ["personality moments", "key stories", "authentic reactions"],
+        "should_remove": ["dead air", "long pauses", "repetitive content"]
+      }
+    },
+    
+    "tutorial_detailed": {
+      "name": "Tutorial - Detailed Step-by-Step",
+      "description": "Test preservation of instructional flow and step-by-step logic",
+      "story_prompt": {
+        "target_audience": "beginners",
+        "tone": "instructional",
+        "key_message": "Clear step-by-step instructions",
+        "desired_length": "long",
+        "story_arc": {
+          "hook": "Show end result or preview",
+          "build": "Step-by-step instructions",
+          "climax": "Key technique or tip",
+          "resolution": "Final result and next steps"
+        },
+        "style_preferences": {
+          "pacing": "slow",
+          "transitions": "smooth",
+          "emphasis": "on_steps"
+        }
+      },
+      "summary": {
+        "video_summary": "Detailed tutorial with step-by-step instructions",
+        "content_type": "tutorial",
+        "main_topics": ["step 1", "step 2", "step 3", "tips"],
+        "speaker_style": "instructional"
+      },
+      "expected_behavior": "Should preserve all important steps, maintain logical flow, keep detailed explanations",
+      "evaluation_criteria": {
+        "coverage": "70-90% of original",
+        "segment_count": "10-30 segments",
+        "should_preserve": ["all steps", "explanations", "demonstrations"],
+        "should_remove": ["only filler and long pauses"]
+      }
+    },
+    
+    "minimal_prompt": {
+      "name": "Edge Case - Minimal Story Prompt",
+      "description": "Test behavior with minimal user input",
+      "story_prompt": {
+        "tone": "educational"
+      },
+      "summary": {
+        "video_summary": "Test video"
+      },
+      "expected_behavior": "Should handle gracefully with minimal input, use defaults",
+      "evaluation_criteria": {
+        "should_not_crash": true,
+        "should_use_defaults": true,
+        "should_generate_valid_edl": true
+      }
+    },
+    
+    "empty_summary": {
+      "name": "Edge Case - Empty Summary",
+      "description": "Test when summary is missing - should analyze frames/transcript directly",
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "educational",
+        "desired_length": "medium"
+      },
+      "summary": {},
+      "expected_behavior": "Should analyze frames and transcript directly, not rely on summary",
+      "evaluation_criteria": {
+        "should_not_fail": true,
+        "should_use_frames": true,
+        "should_use_transcript": true
+      }
+    },
+    
+    "contradictory_preferences": {
+      "name": "Edge Case - Contradictory Preferences",
+      "description": "Test handling of conflicting user preferences",
+      "story_prompt": {
+        "target_audience": "students",
+        "tone": "educational",
+        "desired_length": "short",
+        "style_preferences": {
+          "pacing": "slow"
+        }
+      },
+      "summary": {
+        "video_summary": "Educational content"
+      },
+      "expected_behavior": "Should prioritize desired_length over pacing, or find balance",
+      "evaluation_criteria": {
+        "should_prioritize": "desired_length",
+        "should_find_balance": true
+      }
+    },
+    
+    "very_long_video": {
+      "name": "Edge Case - Very Long Video (30+ min)",
+      "description": "Test aggressive cutting from long-form content",
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "educational",
+        "desired_length": "short",
+        "key_message": "Extract only the most important moments"
+      },
+      "summary": {
+        "video_summary": "Long-form educational content"
+      },
+      "expected_behavior": "Should aggressively cut to create short edit from long video",
+      "evaluation_criteria": {
+        "coverage": "5-20% of original",
+        "should_extract": "key moments only",
+        "should_remove": "most content"
+      }
+    },
+    
+    "very_short_video": {
+      "name": "Edge Case - Very Short Video (<2 min)",
+      "description": "Test minimal cutting for already-short content",
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "casual",
+        "desired_length": "medium"
+      },
+      "summary": {
+        "video_summary": "Short video content"
+      },
+      "expected_behavior": "Should preserve most content, minimal cutting",
+      "evaluation_criteria": {
+        "coverage": "80-95% of original",
+        "should_preserve": "most content",
+        "should_remove": "only dead air"
+      }
+    },
+    
+    "high_energy": {
+      "name": "High Energy Content",
+      "description": "Test fast-paced, energetic content editing",
+      "story_prompt": {
+        "target_audience": "young_adults",
+        "tone": "energetic",
+        "desired_length": "short",
+        "style_preferences": {
+          "pacing": "very_fast",
+          "transitions": "dynamic",
+          "emphasis": "on_highlights"
+        }
+      },
+      "summary": {
+        "video_summary": "High-energy content with fast pacing",
+        "content_type": "entertainment",
+        "speaker_style": "energetic"
+      },
+      "expected_behavior": "Should create fast-paced edit with dynamic cuts",
+      "evaluation_criteria": {
+        "coverage": "15-30% of original",
+        "average_segment_length": "< 5 seconds",
+        "should_preserve": "highlights and key moments"
+      }
+    },
+    
+    "emotional_story": {
+      "name": "Emotional Storytelling",
+      "description": "Test emotional content with story arc",
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "emotional",
+        "key_message": "Tell a compelling story",
+        "desired_length": "medium",
+        "story_arc": {
+          "hook": "Emotional opening",
+          "build": "Build tension and connection",
+          "climax": "Emotional peak",
+          "resolution": "Satisfying conclusion"
+        },
+        "style_preferences": {
+          "pacing": "moderate",
+          "transitions": "smooth",
+          "emphasis": "on_emotion"
+        }
+      },
+      "summary": {
+        "video_summary": "Emotional storytelling content",
+        "content_type": "story",
+        "main_topics": ["personal story", "emotions", "resolution"]
+      },
+      "expected_behavior": "Should preserve emotional beats and story arc",
+      "evaluation_criteria": {
+        "coverage": "50-70% of original",
+        "should_preserve": "emotional moments", "story arc", "key beats"
+      }
+    }
+  }
+}
+

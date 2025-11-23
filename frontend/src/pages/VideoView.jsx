@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Download, Trash2, Clock, Calendar, FileVideo } from 'lucide-react';
+import { ArrowLeft, Download, Trash2, Clock, Calendar, FileVideo, Sparkles } from 'lucide-react';
 import VideoPlayer from '../components/video/VideoPlayer';
 import ProcessingStatus from '../components/video/ProcessingStatus';
 import TranscriptViewer from '../components/edit/TranscriptViewer';
@@ -34,13 +34,22 @@ export default function VideoView() {
     loadCandidates();
   }, [videoId]);
 
-  // Poll for transcript status
+  // Poll for transcript status when queued (only one polling source)
   useEffect(() => {
     if (transcriptStatus === 'queued') {
+      // Check immediately after a short delay, then poll every 5 seconds
+      const immediateCheck = setTimeout(() => {
+        loadTranscriptStatus();
+      }, 2000); // First check after 2 seconds
+      
       const interval = setInterval(() => {
         loadTranscriptStatus();
-      }, 5000); // Check every 5 seconds
-      return () => clearInterval(interval);
+      }, 5000); // Then check every 5 seconds
+      
+      return () => {
+        clearInterval(interval);
+        clearTimeout(immediateCheck);
+      };
     }
   }, [transcriptStatus]);
 
@@ -86,13 +95,22 @@ export default function VideoView() {
   const loadTranscriptStatus = async () => {
     try {
       const response = await videoAPI.getTranscriptStatus(videoId);
-      setTranscriptStatus(response.data.status);
+      // Only update status if we get a definitive answer
+      // Don't overwrite 'queued' with 'not_found' - the task might still be processing
       if (response.data.status === 'complete') {
+        setTranscriptStatus('complete');
         loadTranscript();
+      } else if (response.data.status === 'not_found' && transcriptStatus !== 'queued') {
+        // Only set to 'not_found' if we're not currently queued
+        setTranscriptStatus('not_found');
       }
+      // If status is 'queued', keep it as 'queued' until we get 'complete'
     } catch (error) {
       console.error('Failed to load transcript status:', error);
-      setTranscriptStatus('not_found');
+      // Don't overwrite 'queued' status on error
+      if (transcriptStatus !== 'queued') {
+        setTranscriptStatus('not_found');
+      }
     }
   };
 
@@ -117,8 +135,18 @@ export default function VideoView() {
 
   const handleTranscribe = async () => {
     try {
-      await videoAPI.startTranscription(videoId);
-      setTranscriptStatus('queued');
+      const response = await videoAPI.startTranscription(videoId);
+      // Check response status - might be "queued" or "already_complete"
+      if (response.data.status === 'queued' || response.data.status === 'already_complete') {
+        setTranscriptStatus('queued');
+        // If already complete, check immediately
+        if (response.data.status === 'already_complete') {
+          // Load transcript immediately if it exists
+          setTimeout(() => loadTranscriptStatus(), 1000);
+        }
+      } else {
+        setTranscriptStatus('queued');
+      }
     } catch (error) {
       console.error('Failed to start transcription:', error);
       alert('Failed to start transcription');
@@ -412,9 +440,18 @@ export default function VideoView() {
 
               {/* Actions */}
               <div className="flex gap-3 mt-6 pt-6 border-t border-dark-200">
-                {video.status === 'ready' && proxyUrl && (
+                {video.status === 'ready' && (
                   <Button
                     variant="primary"
+                    icon={Sparkles}
+                    onClick={() => navigate(`/video/${videoId}/ai-edit`)}
+                  >
+                    AI Story Editor
+                  </Button>
+                )}
+                {video.status === 'ready' && proxyUrl && (
+                  <Button
+                    variant="secondary"
                     icon={Download}
                     onClick={() => window.open(`http://localhost:8000${proxyUrl}`, '_blank')}
                   >

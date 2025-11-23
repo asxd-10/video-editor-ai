@@ -73,7 +73,13 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     CELERY_BROKER_URL: str = ""
     CELERY_RESULT_BACKEND: str = ""
-
+    
+    # AI/LLM Configuration
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
+    LLM_MODEL: str = "google/gemini-3-pro-image-preview"
+    LLM_TIMEOUT: int = 120
+    LLM_MAX_RETRIES: int = 3
     
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -126,6 +132,14 @@ class Settings(BaseSettings):
             self.CELERY_BROKER_URL = self.REDIS_URL
         if not self.CELERY_RESULT_BACKEND:
             self.CELERY_RESULT_BACKEND = self.REDIS_URL
+        
+        # Load LLM/AI configuration
+        if not self.OPENROUTER_API_KEY:
+            self.OPENROUTER_API_KEY = os.getenv("OPENROUTER_KEY", "")
+        if not self.LLM_MODEL or self.LLM_MODEL == "google/gemini-3-pro-image-preview":
+            self.LLM_MODEL = os.getenv("MODEL_NAME", "google/gemini-3-pro-image-preview")
+        if not self.OPENROUTER_BASE_URL or self.OPENROUTER_BASE_URL == "https://openrouter.ai/api/v1":
+            self.OPENROUTER_BASE_URL = os.getenv("API_BASE_URL", "https://openrouter.ai/api/v1")
         
         # Set CORS origins dynamically
         if self.ENVIRONMENT == "production":

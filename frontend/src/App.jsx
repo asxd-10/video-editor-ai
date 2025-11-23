@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Upload from './pages/Upload';
 import Library from './pages/Library';
 import VideoView from './pages/VideoView';
+import AIStoryEditor from './pages/AIStoryEditor';
 import React from 'react';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Route path="/upload" element={<Upload />} />
         <Route path="/library" element={<Library />} />
         <Route path="/video/:videoId" element={<VideoView />} />
+        <Route path="/video/:videoId/ai-edit" element={<AIStoryEditor />} />
       </Routes>
     </Router>
   );

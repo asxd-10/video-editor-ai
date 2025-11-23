@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from app.database import SessionLocal
-from app.models.video import Video
+from app.models.media import Media  # Use Media instead of Video
 from app.models.transcript import Transcript
 from app.models.clip_candidate import ClipCandidate
 from app.config import get_settings
@@ -24,6 +24,230 @@ class EditorService:
     def __init__(self):
         self.temp_dir = Path(settings.TEMP_DIR)
         self.temp_dir.mkdir(parents=True, exist_ok=True)
+    
+    def render_from_edl(
+        self,
+        video_id: str,
+        edl: List[Dict],
+        edit_options: Dict = None,
+        media_data: Dict = None  # Cached media data to avoid DB query
+    ) -> Dict:
+        """
+        Render video directly from provided EDL (for AI edits).
+        
+        Args:
+            video_id: Video ID to edit
+            edl: Edit Decision List [{"start": float, "end": float, "type": "keep"}]
+            edit_options: {
+                captions: bool,
+                caption_style: str,  # "burn_in" or "srt"
+                aspect_ratios: List[str]  # ["9:16", "1:1", "16:9"]
+            }
+            media_data: Optional cached media data {
+                video_url: str,
+                original_path: str,
+                duration_seconds: float,
+                has_audio: bool,
+                transcript_segments: List[Dict]  # Optional, for captions
+            }
+        
+        Returns:
+            Dict with output paths for each aspect ratio
+        """
+        # Use cached media_data if provided, otherwise query database
+        cached_video_path = None  # Initialize
+        db = None
+        try:
+            if media_data:
+                video_url = media_data.get("video_url")
+                original_path = media_data.get("original_path")
+                cached_video_path = media_data.get("cached_video_path")  # Locally cached file
+                video_duration = media_data.get("duration_seconds", 0.0)
+                has_audio = media_data.get("has_audio", True)
+                transcript_segments = media_data.get("transcript_segments")
+                # No DB session needed when using cached data
+            else:
+                # Fallback: query database (may timeout in Celery tasks)
+                db = SessionLocal()
+                # Load media record
+                media = db.query(Media).filter(Media.video_id == video_id).first()
+                if not media:
+                    raise ValueError(f"Video {video_id} not found")
+                
+                video_url = getattr(media, 'video_url', None)
+                original_path = getattr(media, 'original_path', None)
+                video_duration = media.duration_seconds or 0.0
+                has_audio = getattr(media, 'has_audio', True) if hasattr(media, 'has_audio') else True
+                transcript_segments = None
+            
+            # Validate EDL
+            if not edl or len(edl) == 0:
+                raise ValueError("EDL cannot be empty")
+            
+            # Validate EDL segments are within video duration
+            for segment in edl:
+                if segment.get("start", 0) < 0 or segment.get("end", 0) > video_duration:
+                    logger.warning(f"Segment {segment} is outside video duration ({video_duration}s)")
+                if segment.get("start", 0) >= segment.get("end", 0):
+                    raise ValueError(f"Invalid segment: start >= end in {segment}")
+            
+            # Get transcript if captions are enabled
+            transcript = None
+            if edit_options and edit_options.get("captions"):
+                if transcript_segments:
+                    # Use cached transcript segments
+                    from app.models.transcript import Transcript
+                    # Create a mock transcript object with segments
+                    class MockTranscript:
+                        def __init__(self, segments, video_id):
+                            self.segments = segments
+                            self.video_id = video_id
+                    transcript = MockTranscript(transcript_segments, video_id)
+                elif db:
+                    # Query database for transcript
+                    transcript = db.query(Transcript).filter(
+                        Transcript.video_id == video_id
+                    ).first()
+                    if not transcript:
+                        logger.warning("Captions requested but transcript not found, disabling captions")
+                        edit_options["captions"] = False
+                else:
+                    logger.warning("Captions requested but no transcript data available, disabling captions")
+                    edit_options["captions"] = False
+            
+            # Default edit options
+            if edit_options is None:
+                edit_options = {
+                    "captions": False,
+                    "caption_style": "burn_in",
+                    "aspect_ratios": ["16:9"]
+                }
+            
+            # Determine input path: prioritize cached local file, then video_url, then original_path
+            video_input_path = None
+            fallback_path = None
+            
+            # First, check if we have a cached local file (downloaded at start)
+            if cached_video_path:
+                from pathlib import Path
+                cached_path = Path(cached_video_path)
+                if cached_path.exists():
+                    video_input_path = str(cached_path)
+                    logger.info(f"Using cached local video file: {video_input_path}")
+                else:
+                    logger.warning(f"Cached video path does not exist: {cached_video_path}, falling back to URL")
+            
+            # If no cached file, use video_url or original_path
+            if not video_input_path:
+                if video_url and video_url.strip():
+                    video_input_path = video_url.strip()
+                    logger.info(f"Using video_url (S3/URL): {video_input_path[:80]}...")
+                    
+                    # Set fallback to original_path if it's a local file (not a URL)
+                    if original_path and original_path.strip():
+                        original_path_clean = original_path.strip()
+                        if not (original_path_clean.startswith('http://') or original_path_clean.startswith('https://')):
+                            # Check if local file exists
+                            from pathlib import Path
+                            path_obj = Path(original_path_clean)
+                            if path_obj.exists():
+                                fallback_path = original_path_clean
+                            else:
+                                from app.config import get_settings
+                                settings = get_settings()
+                                abs_path = Path(settings.BASE_STORAGE_PATH) / original_path_clean.lstrip('/')
+                                if abs_path.exists():
+                                    fallback_path = str(abs_path)
+                elif original_path and original_path.strip():
+                    original_path_clean = original_path.strip()
+                    # Check if it's a URL or local path
+                    if original_path_clean.startswith('http://') or original_path_clean.startswith('https://'):
+                        video_input_path = original_path_clean
+                        logger.info(f"Using original_path (URL): {video_input_path[:80]}...")
+                    else:
+                        # Local path - check if file exists
+                        from pathlib import Path
+                        path_obj = Path(original_path_clean)
+                        if not path_obj.exists():
+                            # Try relative to storage base
+                            from app.config import get_settings
+                            settings = get_settings()
+                            abs_path = Path(settings.BASE_STORAGE_PATH) / original_path_clean.lstrip('/')
+                            if abs_path.exists():
+                                video_input_path = str(abs_path)
+                                logger.info(f"Using original_path (local, resolved): {video_input_path}")
+                            else:
+                                raise ValueError(
+                                    f"Video file not found for video {video_id}. "
+                                    f"Tried: {original_path_clean} and {abs_path}. "
+                                    f"Please ensure video_url is set in media table or file exists at original_path."
+                                )
+                        else:
+                            video_input_path = original_path_clean
+                            logger.info(f"Using original_path (local): {video_input_path}")
+                
+                if not video_input_path:
+                    raise ValueError(
+                        f"No video source found for video {video_id}. "
+                        f"Please set video_url (S3 URL) or original_path in media table."
+                    )
+            
+            # Render video for each aspect ratio
+            output_paths = {}
+            for aspect_ratio in edit_options.get("aspect_ratios", ["16:9"]):
+                # Use cached local file (if downloaded) or URL/local path
+                try:
+                    output_path = self._render_video(
+                        video_input_path,  # Can be cached local file, S3 URL, or local path
+                        edl,
+                        aspect_ratio,
+                        transcript if edit_options.get("captions") else None,
+                        edit_options,
+                        video_id,
+                        aspect_ratio,
+                        has_audio
+                    )
+                    output_paths[aspect_ratio] = output_path
+                except Exception as e:
+                    # If rendering fails and we have a fallback local path, try that
+                    if fallback_path and video_input_path != fallback_path:
+                        logger.warning(
+                            f"Failed to render from video source ({video_input_path[:80] if len(str(video_input_path)) > 80 else video_input_path}...), "
+                            f"trying fallback local path: {fallback_path}"
+                        )
+                        try:
+                            output_path = self._render_video(
+                                fallback_path,
+                                edl,
+                                aspect_ratio,
+                                transcript if edit_options.get("captions") else None,
+                                edit_options,
+                                video_id,
+                                aspect_ratio,
+                                has_audio
+                            )
+                            output_paths[aspect_ratio] = output_path
+                        except Exception as fallback_error:
+                            raise Exception(
+                                f"Render error: Failed to render from both S3 URL and local path. "
+                                f"S3 URL error: {str(e)[:200]}. "
+                                f"Local path error: {str(fallback_error)[:200]}"
+                            )
+                    else:
+                        raise Exception(
+                            f"Render error: Failed to render video. "
+                            f"Source: {video_input_path[:100] if len(str(video_input_path)) > 100 else video_input_path}. "
+                            f"Error: {str(e)[:500]}"
+                        )
+            
+            return {
+                "output_paths": output_paths,
+                "edl": edl,
+                "total_duration": sum(seg["end"] - seg["start"] for seg in edl)
+            }
+        finally:
+            if db:
+                db.close()
     
     def create_edit(
         self,
@@ -52,14 +276,14 @@ class EditorService:
         """
         db = SessionLocal()
         try:
-            # Load video and related data
-            video = db.query(Video).filter(Video.id == video_id).first()
-            if not video:
+            # Load media record (using unified schema)
+            media = db.query(Media).filter(Media.video_id == video_id).first()
+            if not media:
                 raise ValueError(f"Video {video_id} not found")
             
             # Get clip candidate if specified
             clip_start = 0.0
-            clip_end = video.duration_seconds or 0.0
+            clip_end = media.duration_seconds or 0.0
             
             if clip_candidate_id:
                 clip = db.query(ClipCandidate).filter(
@@ -77,8 +301,8 @@ class EditorService:
             # Get analysis metadata (silence segments) - optional
             # Convert from tuples to dicts if needed: [(start, end), ...] -> [{"start": ..., "end": ...}, ...]
             silence_segments = []
-            if video.analysis_metadata:
-                raw_silences = video.analysis_metadata.get("silence_segments", [])
+            if media.analysis_metadata:
+                raw_silences = media.analysis_metadata.get("silence_segments", [])
                 for silence in raw_silences:
                     if isinstance(silence, (list, tuple)) and len(silence) == 2:
                         # Convert tuple/list to dict
@@ -115,14 +339,14 @@ class EditorService:
                 clip_start, clip_end, transcript, silence_segments, edit_options
             )
             
-            # Check if video has audio (for audio normalization)
-            has_audio = getattr(video, 'has_audio', True)
+            # Check if media has audio (for audio normalization)
+            has_audio = getattr(media, 'has_audio', True) if hasattr(media, 'has_audio') else True
             
             # Render video for each aspect ratio
             output_paths = {}
             for aspect_ratio in edit_options.get("aspect_ratios", ["16:9"]):
                 output_path = self._render_video(
-                    video.original_path,
+                    media.original_path,  # Use media.original_path instead of video.original_path
                     edl,
                     aspect_ratio,
                     transcript if edit_options.get("captions") else None,
@@ -348,19 +572,43 @@ class EditorService:
             temp_segments_dir = self.temp_dir / f"{video_id}_{aspect_label}"
             temp_segments_dir.mkdir(parents=True, exist_ok=True)
             
+            valid_segments = []
             for i, segment in enumerate(edl):
-                seg_path = temp_segments_dir / f"seg_{i:04d}.mp4"
-                
-                # Extract segment
-                input_stream = ffmpeg.input(input_path, ss=segment["start"])
-                output_stream = input_stream
-                
                 # Calculate duration
                 duration = segment["end"] - segment["start"]
                 
+                # Skip segments that are too small (< 0.1 seconds) or invalid
+                if duration < 0.1:
+                    logger.warning(f"Skipping segment {i}: duration too small ({duration:.3f}s)")
+                    continue
+                
+                valid_segments.append((i, segment))
+            
+            # Check if we have any valid segments
+            if not valid_segments:
+                raise ValueError("No valid segments in EDL (all segments were too small or invalid)")
+            
+            for seg_idx, segment in valid_segments:
+                seg_path = temp_segments_dir / f"seg_{seg_idx:04d}.mp4"
+                
+                # Extract segment
+                # FFmpeg can handle URLs directly (including S3 URLs)
+                # Note: Some FFmpeg builds don't support http_persistent, so we don't use it
+                input_kwargs = {"ss": segment["start"]}
+                
+                # For remote URLs, FFmpeg handles them natively without special options
+                input_stream = ffmpeg.input(input_path, **input_kwargs)
+                output_stream = input_stream
+                
                 # Apply aspect ratio conversion if needed
+                # Note: For 16:9, we keep original (or scale to standard 1920x1080)
+                # For other ratios, apply conversion
                 if aspect_ratio != "16:9":
                     output_stream = self._apply_aspect_ratio(output_stream, aspect_ratio)
+                else:
+                    # For 16:9, optionally scale to standard resolution
+                    # output_stream = output_stream.filter('scale', 1920, 1080)
+                    pass  # Keep original resolution for now
                 
                 # Note: Dynamic zoom and pace optimization are complex
                 # For MVP, we'll skip these for now to ensure stability
@@ -472,7 +720,32 @@ class EditorService:
                 )
             
             logger.info(f"Rendered video: {output_path}")
-            return str(output_path)
+            # Convert to relative path from BASE_STORAGE_PATH for URL generation
+            try:
+                # Ensure output_path is absolute
+                if not output_path.is_absolute():
+                    output_path = output_path.resolve()
+                
+                # Get relative path from BASE_STORAGE_PATH
+                relative_path = output_path.relative_to(settings.BASE_STORAGE_PATH)
+                # Return as URL path (will be converted to full URL in API)
+                return f"/storage/{relative_path.as_posix()}"
+            except ValueError as e:
+                # If path is not relative to BASE_STORAGE_PATH, try to resolve it
+                logger.warning(f"Could not get relative path for {output_path}: {e}")
+                # Try to construct path manually
+                if 'processed' in str(output_path):
+                    # Extract video_id and filename from path
+                    parts = Path(output_path).parts
+                    if 'processed' in parts:
+                        idx = parts.index('processed')
+                        if idx + 1 < len(parts):
+                            video_id = parts[idx + 1]
+                            filename = parts[-1] if len(parts) > idx + 2 else None
+                            if filename:
+                                return f"/storage/processed/{video_id}/{filename}"
+                # Fallback: return the path as is (API will handle conversion)
+                return str(output_path)
             
         except ffmpeg.Error as e:
             error_msg = e.stderr.decode() if e.stderr else str(e)
@@ -480,19 +753,29 @@ class EditorService:
             raise Exception(f"Rendering failed: {error_msg}")
     
     def _apply_aspect_ratio(self, stream, aspect_ratio: str) -> ffmpeg.Stream:
-        """Apply aspect ratio conversion (crop/scale with smart centering)"""
-        # Parse aspect ratio
+        """
+        Apply aspect ratio conversion (crop/scale with smart centering).
+        Uses scale then crop to ensure output fits within target dimensions.
+        """
         if aspect_ratio == "9:16":
             # Vertical (TikTok/Reels) - 1080x1920
-            # Scale to fit height, then crop width
+            # Strategy: Scale to fit height (1920), then crop width to 1080
             return stream.filter('scale', -1, 1920).filter('crop', 1080, 1920, '(iw-1080)/2', 0)
         elif aspect_ratio == "1:1":
             # Square (Instagram) - 1080x1080
-            # Scale to fit width, then crop height
-            return stream.filter('scale', 1080, -1).filter('crop', 1080, 1080, 0, '(ih-1080)/2')
+            # Strategy: Scale to ensure BOTH dimensions are >= 1080, then crop to square
+            # If width > height: scale width to 1080, height becomes >= 1080 (good)
+            # If height > width: scale height to 1080, width becomes >= 1080 (good)
+            # If width == height: scale both to 1080 (good)
+            # This ensures we always have enough pixels to crop to 1080x1080
+            return stream.filter(
+                'scale', 
+                'if(gt(iw,ih),1080,-1)',  # If width > height: scale width to 1080, height auto
+                'if(gt(ih,iw),-1,1080)'   # If height > width: scale height to 1080, width auto
+            ).filter('crop', 1080, 1080, '(iw-1080)/2', '(ih-1080)/2')
         elif aspect_ratio == "16:9":
             # Horizontal (YouTube) - 1920x1080
-            # Scale to fit width, then crop height
+            # Strategy: Scale to fit width (1920), then crop height to 1080
             return stream.filter('scale', 1920, -1).filter('crop', 1920, 1080, 0, '(ih-1080)/2')
         else:
             return stream

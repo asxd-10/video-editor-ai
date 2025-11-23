@@ -101,6 +101,14 @@ export const videoAPI = {
       params: { aspect_ratio: aspectRatio },
       responseType: 'blob'
     }),
+
+  // AI Edit Jobs
+  getAIEditData: (videoId) => api.get(`/api/videos/${videoId}/ai-edit/data`),
+  generateAIEdit: (videoId, data) => api.post(`/api/videos/${videoId}/ai-edit/generate`, data),
+  getAIEditPlan: (videoId, jobId) => api.get(`/api/videos/${videoId}/ai-edit/plan/${jobId}`),
+  applyAIEdit: (videoId, jobId, aspectRatios = ['16:9']) => 
+    api.post(`/api/videos/${videoId}/ai-edit/apply/${jobId}`, { aspect_ratios: aspectRatios }),
+  listAIEditJobs: (videoId) => api.get(`/api/videos/${videoId}/ai-edit`),
 };
 
 export default api;

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from app.database import get_db
-from app.models.video import Video
+from app.models.media import Media  # Use Media instead of Video
 from app.models.transcript import Transcript
 from app.models.clip_candidate import ClipCandidate
 from app.models.edit_job import EditJob, EditJobStatus
@@ -18,8 +18,8 @@ router = APIRouter()
 @router.post("/{video_id}/transcribe")
 async def start_transcription(video_id: str, db: Session = Depends(get_db)):
     """Start transcription for a video"""
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
+    media = db.query(Media).filter(Media.video_id == video_id).first()
+    if not media:
         raise HTTPException(status_code=404, detail="Video not found")
     
     # Check if already transcribed
@@ -79,17 +79,17 @@ async def get_transcript_status(video_id: str, db: Session = Depends(get_db)):
 @router.post("/{video_id}/analyze")
 async def start_analysis(video_id: str, db: Session = Depends(get_db)):
     """Start video analysis (silence + scene detection)"""
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
+    media = db.query(Media).filter(Media.video_id == video_id).first()
+    if not media:
         raise HTTPException(status_code=404, detail="Video not found")
     
     # Check if already analyzed
-    if video.analysis_metadata:
+    if media.analysis_metadata:
         return {
             "status": "already_complete",
             "message": "Analysis already complete",
-            "silence_segments": len(video.analysis_metadata.get("silence_segments", [])),
-            "scene_timestamps": len(video.analysis_metadata.get("scene_timestamps", []))
+            "silence_segments": len(media.analysis_metadata.get("silence_segments", [])),
+            "scene_timestamps": len(media.analysis_metadata.get("scene_timestamps", []))
         }
     
     # Queue analysis task
@@ -105,8 +105,8 @@ async def start_analysis(video_id: str, db: Session = Depends(get_db)):
 @router.get("/{video_id}/candidates")
 async def get_clip_candidates(video_id: str, db: Session = Depends(get_db)):
     """Get clip candidates for a video (returns empty list if transcript doesn't exist)"""
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
+    media = db.query(Media).filter(Media.video_id == video_id).first()
+    if not media:
         raise HTTPException(status_code=404, detail="Video not found")
     
     # Check if transcript exists - if not, return empty list (don't error)
@@ -145,8 +145,8 @@ async def get_clip_candidates(video_id: str, db: Session = Depends(get_db)):
 @router.post("/{video_id}/candidates")
 async def generate_candidates(video_id: str, db: Session = Depends(get_db)):
     """Generate new clip candidates"""
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
+    media = db.query(Media).filter(Media.video_id == video_id).first()
+    if not media:
         raise HTTPException(status_code=404, detail="Video not found")
     
     # Check if transcript exists
@@ -192,8 +192,8 @@ async def create_edit_job(
     db: Session = Depends(get_db)
 ):
     """Create a new edit job for a video"""
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
+    media = db.query(Media).filter(Media.video_id == video_id).first()
+    if not media:
         raise HTTPException(status_code=404, detail="Video not found")
     
     # Validate clip candidate if provided
@@ -242,13 +242,46 @@ async def get_edit_job_status(
     if not edit_job:
         raise HTTPException(status_code=404, detail="Edit job not found")
     
+    # Convert output_paths to full URLs
+    output_paths_urls = {}
+    if edit_job.output_paths:
+        from app.config import get_settings
+        settings = get_settings()
+        from pathlib import Path
+        
+        for aspect_ratio, path in edit_job.output_paths.items():
+            if path:
+                # If already a URL path (starts with /storage), use as is
+                if path.startswith('/storage/'):
+                    output_paths_urls[aspect_ratio] = path
+                else:
+                    # Convert relative or absolute path to URL
+                    path_obj = Path(path)
+                    try:
+                        # Try to get relative path from BASE_STORAGE_PATH
+                        relative_path = path_obj.relative_to(settings.BASE_STORAGE_PATH)
+                        output_paths_urls[aspect_ratio] = f"/storage/{relative_path.as_posix()}"
+                    except ValueError:
+                        # If not relative, try to resolve it
+                        if path_obj.is_absolute():
+                            # Try to find if it's under BASE_STORAGE_PATH
+                            try:
+                                relative_path = path_obj.relative_to(settings.BASE_STORAGE_PATH)
+                                output_paths_urls[aspect_ratio] = f"/storage/{relative_path.as_posix()}"
+                            except ValueError:
+                                # Fallback: use the path as is (might be a full URL or external path)
+                                output_paths_urls[aspect_ratio] = path
+                        else:
+                            # Relative path - assume it's relative to BASE_STORAGE_PATH
+                            output_paths_urls[aspect_ratio] = f"/storage/{path.lstrip('/')}"
+    
     return {
         "job_id": edit_job.id,
         "video_id": edit_job.video_id,
         "clip_candidate_id": edit_job.clip_candidate_id,
         "status": edit_job.status,
         "edit_options": edit_job.edit_options,
-        "output_paths": edit_job.output_paths,
+        "output_paths": output_paths_urls,  # Return URLs instead of file paths
         "error_message": edit_job.error_message,
         "created_at": edit_job.created_at,
         "started_at": edit_job.started_at,
@@ -302,8 +335,8 @@ async def list_edit_jobs(
     db: Session = Depends(get_db)
 ):
     """List all edit jobs for a video"""
-    video = db.query(Video).filter(Video.id == video_id).first()
-    if not video:
+    media = db.query(Media).filter(Media.video_id == video_id).first()
+    if not media:
         raise HTTPException(status_code=404, detail="Video not found")
     
     edit_jobs = db.query(EditJob).filter(

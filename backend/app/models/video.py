@@ -1,8 +1,9 @@
 from sqlalchemy import (
-    Column, String, Integer, Float, Boolean, JSON, 
-    Enum as SQLEnum, ForeignKey, Index, Text
+    Column, String, Integer, Float, Boolean, JSON, BigInteger,
+    Enum as SQLEnum, ForeignKey, Index, Text, DateTime
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from app.database import Base
 from datetime import datetime
 import enum
@@ -78,16 +79,16 @@ class Video(Base):
     updated_at = Column(String, default=lambda: datetime.utcnow().isoformat(), 
                        onupdate=lambda: datetime.utcnow().isoformat(), nullable=False)
     
-    # Relationships
-    assets = relationship("VideoAsset", back_populates="video", cascade="all, delete-orphan")
-    upload_chunks = relationship("UploadChunk", back_populates="video", cascade="all, delete-orphan")
-    processing_logs = relationship("ProcessingLog", back_populates="video", cascade="all, delete-orphan")
-    
-    # Video Editing Relationships
-    transcript = relationship("Transcript", back_populates="video", uselist=False, cascade="all, delete-orphan")
-    clip_candidates = relationship("ClipCandidate", back_populates="video", cascade="all, delete-orphan")
-    edit_jobs = relationship("EditJob", back_populates="video", cascade="all, delete-orphan")
-    retention_analysis = relationship("RetentionAnalysis", back_populates="video", uselist=False, cascade="all, delete-orphan")
+    # Relationships - COMMENTED OUT: All models now use Media table, not Video
+    # These relationships cannot work because foreign keys now point to media.video_id
+    # assets = relationship("VideoAsset", back_populates="video", cascade="all, delete-orphan")
+    # upload_chunks = relationship("UploadChunk", back_populates="video", cascade="all, delete-orphan")
+    # processing_logs = relationship("ProcessingLog", back_populates="video", cascade="all, delete-orphan")
+    # transcript = relationship("Transcript", back_populates="video", uselist=False, cascade="all, delete-orphan")
+    # clip_candidates = relationship("ClipCandidate", back_populates="video", cascade="all, delete-orphan")
+    # edit_jobs = relationship("EditJob", back_populates="video", cascade="all, delete-orphan")
+    # ai_edit_jobs = relationship("AIEditJob", back_populates="video", cascade="all, delete-orphan")
+    # retention_analysis = relationship("RetentionAnalysis", back_populates="video", uselist=False, cascade="all, delete-orphan")
     
     # Indexes for common queries
     __table_args__ = (
@@ -100,8 +101,8 @@ class VideoAsset(Base):
     """Different versions/derivatives of the video (proxy, thumbnails, etc.)"""
     __tablename__ = "video_assets"
     
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    video_id = Column(String(36), ForeignKey('videos.id'), nullable=False)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)  # BIGSERIAL in database
+    video_id = Column(String, ForeignKey('media.video_id'), nullable=False)
     
     asset_type = Column(SQLEnum(VideoQuality), nullable=False)
     file_path = Column(String(500), nullable=False)
@@ -114,9 +115,10 @@ class VideoAsset(Base):
     
     # Processing info
     status = Column(String(20), default="pending")  # pending, processing, ready, failed
-    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  # TIMESTAMPTZ in database
     
-    video = relationship("Video", back_populates="assets")
+    # Legacy Video relationship removed - use media relationship
+    media = relationship("Media", back_populates="assets")
     
     __table_args__ = (
         Index('idx_asset_video_type', 'video_id', 'asset_type'),
@@ -126,15 +128,16 @@ class UploadChunk(Base):
     """Track chunked uploads for resumability"""
     __tablename__ = "upload_chunks"
     
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    video_id = Column(String(36), ForeignKey('videos.id'), nullable=False)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)  # BIGSERIAL in database
+    video_id = Column(String, ForeignKey('media.video_id'), nullable=False)
     
     chunk_number = Column(Integer, nullable=False)
     chunk_size = Column(Integer, nullable=False)
     checksum = Column(String(32))  # MD5 of chunk
-    uploaded_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    uploaded_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  # TIMESTAMPTZ in database
     
-    video = relationship("Video", back_populates="upload_chunks")
+    # Legacy Video relationship removed - use media relationship
+    media = relationship("Media", back_populates="upload_chunks")
     
     __table_args__ = (
         Index('idx_chunk_video', 'video_id', 'chunk_number'),
@@ -144,19 +147,19 @@ class ProcessingLog(Base):
     """Audit trail for all processing steps"""
     __tablename__ = "processing_logs"
     
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    video_id = Column(String(36), ForeignKey('videos.id'), nullable=False)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)  # BIGSERIAL in database
+    video_id = Column(String, ForeignKey('media.video_id'), nullable=False)
+    frame_id = Column(BigInteger, ForeignKey('frames.id'), nullable=True)  # Optional reference to frames table
     
-    step = Column(String(50), nullable=False)  # e.g., "extract_metadata", "create_proxy"
-    status = Column(String(20), nullable=False)  # started, completed, failed
-    message = Column(Text)
-    error_details = Column(JSON)  # Stack trace if failed
+    level = Column(String(20), nullable=False)  # 'INFO', 'WARNING', 'ERROR' (matches unified schema)
+    step = Column(String(50))  # Processing step name (optional in unified schema)
+    message = Column(Text, nullable=False)
+    error_details = Column(JSON)  # JSONB in database, JSON in SQLAlchemy
     
-    started_at = Column(String, default=lambda: datetime.utcnow().isoformat())
-    completed_at = Column(String)
-    duration_seconds = Column(Float)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  # TIMESTAMPTZ in database
     
-    video = relationship("Video", back_populates="processing_logs")
+    # Legacy Video relationship removed - use media relationship
+    media = relationship("Media", back_populates="processing_logs")
     
     __table_args__ = (
         Index('idx_log_video_step', 'video_id', 'step'),

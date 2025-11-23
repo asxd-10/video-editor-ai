@@ -34,6 +34,8 @@ export default function EditJobManager({ videoId, clipCandidateId, onEditComplet
   });
 
   // Check if transcript exists (optional - editing works without it, but with limited features)
+  // Only check once on mount and when videoId changes - don't poll continuously
+  // The parent component (VideoView) handles polling for transcript status
   useEffect(() => {
     const checkTranscript = async () => {
       try {
@@ -44,10 +46,7 @@ export default function EditJobManager({ videoId, clipCandidateId, onEditComplet
       }
     };
     checkTranscript();
-    
-    // Poll for transcript completion
-    const interval = setInterval(checkTranscript, 5000);
-    return () => clearInterval(interval);
+    // Only check once - parent component handles polling
   }, [videoId]);
 
   // Load edit jobs on mount

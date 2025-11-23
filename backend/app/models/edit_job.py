@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, JSON, ForeignKey, Enum as SQLEnum
+from sqlalchemy import Column, String, JSON, ForeignKey, Enum as SQLEnum, BigInteger, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from app.database import Base
 from datetime import datetime
 import uuid
@@ -14,9 +15,9 @@ class EditJobStatus(str, enum.Enum):
 class EditJob(Base):
     __tablename__ = "edit_jobs"
     
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    video_id = Column(String(36), ForeignKey('videos.id'), nullable=False)
-    clip_candidate_id = Column(String(36), ForeignKey('clip_candidates.id'), nullable=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)  # BIGSERIAL in database
+    video_id = Column(String, ForeignKey('media.video_id'), nullable=False)
+    clip_candidate_id = Column(BigInteger, ForeignKey('clip_candidates.id'), nullable=True)  # bigint in database
     
     # Edit options
     edit_options = Column(JSON, nullable=False)  # {
@@ -35,10 +36,11 @@ class EditJob(Base):
     # Output paths: {aspect_ratio: path}
     output_paths = Column(JSON)
     
-    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
-    started_at = Column(String)
-    completed_at = Column(String)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())  # TIMESTAMPTZ in database
+    started_at = Column(DateTime(timezone=True), nullable=True)  # TIMESTAMPTZ in database
+    completed_at = Column(DateTime(timezone=True), nullable=True)  # TIMESTAMPTZ in database
     
-    video = relationship("Video", back_populates="edit_jobs")
+    # Legacy Video relationship removed - use media relationship
+    media = relationship("Media", back_populates="edit_jobs")
     clip_candidate = relationship("ClipCandidate")
 

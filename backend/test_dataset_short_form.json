@@ -1,0 +1,1002 @@
+{
+  "test_videos": [
+    {
+      "video_id": "test_short_001",
+      "duration": 38.5,
+      "description": "Travel vlog - quick highlights from a trip",
+      "frame_level_data": [
+        {
+          "frame_timestamp": 0,
+          "description": "Opening shot: Person standing at airport terminal, luggage in hand, excited expression, natural lighting"
+        },
+        {
+          "frame_timestamp": 2,
+          "description": "Transition: Plane taking off, dramatic sky view, golden hour lighting"
+        },
+        {
+          "frame_timestamp": 4,
+          "description": "Destination arrival: Person walking through vibrant street market, colorful stalls, people in background"
+        },
+        {
+          "frame_timestamp": 6,
+          "description": "Food moment: Close-up of delicious local dish being prepared, steam rising, appetizing presentation"
+        },
+        {
+          "frame_timestamp": 8,
+          "description": "Scenic view: Beautiful sunset over mountains, person in silhouette, cinematic composition"
+        },
+        {
+          "frame_timestamp": 10,
+          "description": "Action moment: Person trying local activity (surfing/dancing), dynamic movement, engaging"
+        },
+        {
+          "frame_timestamp": 12,
+          "description": "Cultural moment: Local festival or celebration, vibrant colors, people dancing, energetic"
+        },
+        {
+          "frame_timestamp": 14,
+          "description": "Personal moment: Person laughing with locals, authentic interaction, warm atmosphere"
+        },
+        {
+          "frame_timestamp": 16,
+          "description": "Landmark: Famous building or monument, person taking photo, tourist moment"
+        },
+        {
+          "frame_timestamp": 18,
+          "description": "Nature shot: Beautiful beach or landscape, person enjoying view, peaceful"
+        },
+        {
+          "frame_timestamp": 20,
+          "description": "Food again: Person eating at local restaurant, satisfied expression, social setting"
+        },
+        {
+          "frame_timestamp": 22,
+          "description": "Night scene: City lights, person walking, urban atmosphere, modern"
+        },
+        {
+          "frame_timestamp": 24,
+          "description": "Adventure: Person doing something adventurous (hiking/climbing), action-packed"
+        },
+        {
+          "frame_timestamp": 26,
+          "description": "Reflection: Person looking at view, contemplative, emotional moment"
+        },
+        {
+          "frame_timestamp": 28,
+          "description": "Group moment: Person with friends or locals, group photo, happy"
+        },
+        {
+          "frame_timestamp": 30,
+          "description": "Final destination: Another beautiful location, person exploring, discovery"
+        },
+        {
+          "frame_timestamp": 32,
+          "description": "Sunset: Final sunset shot, person in frame, emotional ending"
+        },
+        {
+          "frame_timestamp": 34,
+          "description": "Closing: Person waving goodbye or looking at camera, personal connection"
+        },
+        {
+          "frame_timestamp": 36,
+          "description": "End card: Text overlay or final shot, call to action moment"
+        }
+      ],
+      "scene_level_data": {
+        "scene_count": 5,
+        "scenes": [
+          {
+            "start": 0.0,
+            "end": 8.0,
+            "description": "Opening and travel - Airport to destination arrival, establishing the journey",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 8.0,
+            "end": 16.0,
+            "description": "Food and culture - Local food experience and cultural immersion",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 16.0,
+            "end": 24.0,
+            "description": "Adventure and landmarks - Exploring and doing activities",
+            "metadata": {
+              "importance": "medium"
+            }
+          },
+          {
+            "start": 24.0,
+            "end": 32.0,
+            "description": "Emotional moments - Reflection and connection with place",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 32.0,
+            "end": 38.5,
+            "description": "Closing - Final moments and call to action",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          }
+        ]
+      },
+      "transcript_data": [
+        {
+          "start": 0.0,
+          "end": 3.5,
+          "text": "Just landed in this amazing place and I'm so excited to show you what we're going to do today!"
+        },
+        {
+          "start": 3.5,
+          "end": 7.0,
+          "text": "First stop, we're hitting up the local market. Look at all these colors!"
+        },
+        {
+          "start": 7.0,
+          "end": 10.5,
+          "text": "And this food? Absolutely incredible. You have to try this if you ever come here."
+        },
+        {
+          "start": 10.5,
+          "end": 14.0,
+          "text": "We're about to do something I've never done before. This is going to be epic!"
+        },
+        {
+          "start": 14.0,
+          "end": 18.0,
+          "text": "The people here are so welcoming. This experience is changing me."
+        },
+        {
+          "start": 18.0,
+          "end": 22.0,
+          "text": "Check out this view. I mean, come on. This is why we travel."
+        },
+        {
+          "start": 22.0,
+          "end": 26.0,
+          "text": "Having the best time with these amazing people. Travel brings us together."
+        },
+        {
+          "start": 26.0,
+          "end": 30.0,
+          "text": "This place has my heart. I don't want this trip to end."
+        },
+        {
+          "start": 30.0,
+          "end": 34.0,
+          "text": "If you're watching this, you need to add this to your bucket list. Trust me."
+        },
+        {
+          "start": 34.0,
+          "end": 38.5,
+          "text": "Thanks for coming on this journey with me. Don't forget to like and subscribe!"
+        }
+      ],
+      "test_scenarios": [
+        {
+          "name": "high_energy_hype_reel",
+          "story_prompt": {
+            "target_audience": "young_adults",
+            "tone": "energetic",
+            "key_message": "Show the most exciting moments, fast-paced, hype energy",
+            "desired_length": "short",
+            "story_arc": {
+              "hook": "Grab attention with most exciting moment in first 2 seconds",
+              "build": "Rapid fire of best moments, high energy",
+              "climax": "Most epic/adventurous moment",
+              "resolution": "Call to action, subscribe/follow"
+            },
+            "style_preferences": {
+              "pacing": "very_fast",
+              "transitions": "dynamic",
+              "emphasis": "on_highlights"
+            }
+          },
+          "expected_edl_coverage": "15-25%",
+          "expected_segments": "8-12",
+          "expected_quality": "Fast cuts, high energy, highlights only"
+        },
+        {
+          "name": "nostalgic_summer_vibes",
+          "story_prompt": {
+            "target_audience": "general",
+            "tone": "nostalgic",
+            "key_message": "End of summer, warm memories, emotional connection",
+            "desired_length": "medium",
+            "story_arc": {
+              "hook": "Beautiful opening shot that sets the mood",
+              "build": "Build emotional connection, show experiences",
+              "climax": "Most meaningful/emotional moment",
+              "resolution": "Reflective ending, warm feeling"
+            },
+            "style_preferences": {
+              "pacing": "moderate",
+              "transitions": "smooth",
+              "emphasis": "on_emotion"
+            }
+          },
+          "expected_edl_coverage": "60-80%",
+          "expected_segments": "12-18",
+          "expected_quality": "Smooth transitions, emotional beats, preserves mood"
+        },
+        {
+          "name": "quick_tips_tutorial",
+          "story_prompt": {
+            "target_audience": "beginners",
+            "tone": "educational",
+            "key_message": "Quick tips for traveling, actionable advice",
+            "desired_length": "short",
+            "story_arc": {
+              "hook": "Start with result or preview of what you'll learn",
+              "build": "Show tips with examples",
+              "climax": "Best tip or most important advice",
+              "resolution": "Summary and next steps"
+            },
+            "style_preferences": {
+              "pacing": "fast",
+              "transitions": "smooth",
+              "emphasis": "on_tips"
+            }
+          },
+          "expected_edl_coverage": "30-50%",
+          "expected_segments": "10-15",
+          "expected_quality": "Clear tips, good examples, actionable"
+        }
+      ]
+    },
+    {
+      "video_id": "test_short_002",
+      "duration": 35.0,
+      "description": "Product review/unboxing - tech product",
+      "frame_level_data": [
+        {
+          "frame_timestamp": 0,
+          "description": "Hook: Product box in center, hands opening it, anticipation building"
+        },
+        {
+          "frame_timestamp": 2,
+          "description": "Unboxing: Removing product from box, clean presentation"
+        },
+        {
+          "frame_timestamp": 4,
+          "description": "First look: Product close-up, showing design details, professional lighting"
+        },
+        {
+          "frame_timestamp": 6,
+          "description": "Features: Demonstrating key feature, hands interacting with product"
+        },
+        {
+          "frame_timestamp": 8,
+          "description": "Comparison: Showing product next to competitor or old version"
+        },
+        {
+          "frame_timestamp": 10,
+          "description": "In use: Person using product in real scenario, authentic"
+        },
+        {
+          "frame_timestamp": 12,
+          "description": "Detail shot: Close-up of specific feature, highlighting quality"
+        },
+        {
+          "frame_timestamp": 14,
+          "description": "Problem solved: Showing how product solves a problem"
+        },
+        {
+          "frame_timestamp": 16,
+          "description": "Reaction: Person's genuine reaction, positive expression"
+        },
+        {
+          "frame_timestamp": 18,
+          "description": "Value prop: Showing why it's worth it, key benefit"
+        },
+        {
+          "frame_timestamp": 20,
+          "description": "Final thoughts: Person summarizing, honest opinion"
+        },
+        {
+          "frame_timestamp": 22,
+          "description": "Call to action: Product link or where to buy, clear CTA"
+        }
+      ],
+      "scene_level_data": {
+        "scene_count": 4,
+        "scenes": [
+          {
+            "start": 0.0,
+            "end": 8.0,
+            "description": "Unboxing and first impressions - Opening and initial reaction",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 8.0,
+            "end": 16.0,
+            "description": "Features and demonstration - Showing what it does",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 16.0,
+            "end": 24.0,
+            "description": "Review and opinion - Honest thoughts and evaluation",
+            "metadata": {
+              "importance": "high"
+            }
+          },
+          {
+            "start": 24.0,
+            "end": 35.0,
+            "description": "Conclusion and CTA - Final verdict and call to action",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          }
+        ]
+      },
+      "transcript_data": [
+        {
+          "start": 0.0,
+          "end": 4.0,
+          "text": "Okay, I just got this in the mail and I'm so excited to unbox it for you guys!"
+        },
+        {
+          "start": 4.0,
+          "end": 8.0,
+          "text": "First impressions? The packaging is actually really nice. Let's see what's inside."
+        },
+        {
+          "start": 8.0,
+          "end": 12.0,
+          "text": "So the main feature everyone's talking about is this right here. Watch this."
+        },
+        {
+          "start": 12.0,
+          "end": 16.0,
+          "text": "Compared to the old version, this is a huge upgrade. The difference is night and day."
+        },
+        {
+          "start": 16.0,
+          "end": 20.0,
+          "text": "I've been using it for a week now and honestly? It's changed how I do things."
+        },
+        {
+          "start": 20.0,
+          "end": 24.0,
+          "text": "The only downside is the price, but for what you get, it's worth it."
+        },
+        {
+          "start": 24.0,
+          "end": 28.0,
+          "text": "Overall, I'd give this a solid 8 out of 10. Would I recommend it? Yes."
+        },
+        {
+          "start": 28.0,
+          "end": 35.0,
+          "text": "Link in bio if you want to check it out. Let me know what you think in the comments!"
+        }
+      ],
+      "test_scenarios": [
+        {
+          "name": "quick_review_short",
+          "story_prompt": {
+            "target_audience": "shoppers",
+            "tone": "informative",
+            "key_message": "Quick honest review, key features, worth it or not",
+            "desired_length": "short",
+            "story_arc": {
+              "hook": "Product reveal or key feature in first 2 seconds",
+              "build": "Show features and benefits quickly",
+              "climax": "Honest opinion or verdict",
+              "resolution": "Clear recommendation and CTA"
+            },
+            "style_preferences": {
+              "pacing": "fast",
+              "transitions": "smooth",
+              "emphasis": "on_features"
+            }
+          },
+          "expected_edl_coverage": "40-60%",
+          "expected_segments": "8-12",
+          "expected_quality": "Clear features, honest opinion, quick but informative"
+        }
+      ]
+    },
+    {
+      "video_id": "test_short_003",
+      "duration": 28.0,
+      "description": "Day in the life - influencer morning routine",
+      "frame_level_data": [
+        {
+          "frame_timestamp": 0,
+          "description": "Wake up: Alarm going off, person waking up, natural morning light"
+        },
+        {
+          "frame_timestamp": 2,
+          "description": "Coffee: Making coffee, aesthetic setup, cozy vibes"
+        },
+        {
+          "frame_timestamp": 4,
+          "description": "Skincare: Morning skincare routine, products shown, self-care moment"
+        },
+        {
+          "frame_timestamp": 6,
+          "description": "Outfit: Choosing outfit, fashion moment, style showcase"
+        },
+        {
+          "frame_timestamp": 8,
+          "description": "Breakfast: Healthy breakfast prep, aesthetic food, lifestyle"
+        },
+        {
+          "frame_timestamp": 10,
+          "description": "Work: Person at desk, productive moment, modern setup"
+        },
+        {
+          "frame_timestamp": 12,
+          "description": "Exercise: Quick workout or yoga, active lifestyle"
+        },
+        {
+          "frame_timestamp": 14,
+          "description": "Outdoor: Person outside, fresh air, nature connection"
+        },
+        {
+          "frame_timestamp": 16,
+          "description": "Social: Person meeting friend or content creation, social moment"
+        },
+        {
+          "frame_timestamp": 18,
+          "description": "Evening: Wind down, relaxing, cozy evening vibes"
+        },
+        {
+          "frame_timestamp": 20,
+          "description": "Reflection: Person journaling or reflecting, personal growth"
+        },
+        {
+          "frame_timestamp": 22,
+          "description": "Final: Person looking at camera, personal message, connection"
+        }
+      ],
+      "scene_level_data": {
+        "scene_count": 4,
+        "scenes": [
+          {
+            "start": 0.0,
+            "end": 7.0,
+            "description": "Morning routine - Wake up, coffee, skincare, starting the day",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 7.0,
+            "end": 14.0,
+            "description": "Active day - Work, exercise, being productive",
+            "metadata": {
+              "importance": "medium"
+            }
+          },
+          {
+            "start": 14.0,
+            "end": 21.0,
+            "description": "Social and personal - Connecting with others and self-care",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 21.0,
+            "end": 28.0,
+            "description": "Evening and reflection - Winding down, personal growth",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          }
+        ]
+      },
+      "transcript_data": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "text": "Good morning! Let me show you my morning routine."
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "text": "First things first, coffee. Can't function without it."
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "text": "Skincare is so important. Taking care of yourself matters."
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "text": "Today I'm going for a casual but put-together look."
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "text": "Quick breakfast and then I'm ready to tackle the day."
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "text": "Got some work done, now time for a quick workout."
+        },
+        {
+          "start": 18.0,
+          "end": 21.0,
+          "text": "Meeting up with a friend. Social connections are everything."
+        },
+        {
+          "start": 21.0,
+          "end": 24.0,
+          "text": "Evening is for winding down and reflecting on the day."
+        },
+        {
+          "start": 24.0,
+          "end": 28.0,
+          "text": "That's a day in my life. Thanks for watching, see you tomorrow!"
+        }
+      ],
+      "test_scenarios": [
+        {
+          "name": "aesthetic_lifestyle",
+          "story_prompt": {
+            "target_audience": "lifestyle_enthusiasts",
+            "tone": "aesthetic",
+            "key_message": "Show beautiful moments, aesthetic lifestyle, aspirational",
+            "desired_length": "medium",
+            "story_arc": {
+              "hook": "Beautiful opening shot, aesthetic vibe",
+              "build": "Show lifestyle moments, aesthetic shots",
+              "climax": "Most beautiful or aspirational moment",
+              "resolution": "Personal connection, follow for more"
+            },
+            "style_preferences": {
+              "pacing": "moderate",
+              "transitions": "smooth",
+              "emphasis": "on_aesthetic"
+            }
+          },
+          "expected_edl_coverage": "70-90%",
+          "expected_segments": "10-15",
+          "expected_quality": "Aesthetic shots, smooth flow, lifestyle vibes"
+        }
+      ]
+    },
+    {
+      "video_id": "test_short_004",
+      "duration": 25.0,
+      "description": "Quick tutorial - cooking recipe",
+      "frame_level_data": [
+        {
+          "frame_timestamp": 0,
+          "description": "Hook: Final dish plated beautifully, appetizing, makes you want to cook"
+        },
+        {
+          "frame_timestamp": 2,
+          "description": "Ingredients: All ingredients laid out, organized, clean presentation"
+        },
+        {
+          "frame_timestamp": 4,
+          "description": "Step 1: First cooking step, clear action, easy to follow"
+        },
+        {
+          "frame_timestamp": 6,
+          "description": "Step 2: Next step, hands doing action, instructional"
+        },
+        {
+          "frame_timestamp": 8,
+          "description": "Step 3: Cooking process, sizzling, appetizing visuals"
+        },
+        {
+          "frame_timestamp": 10,
+          "description": "Step 4: Adding ingredients, mixing, technique shown"
+        },
+        {
+          "frame_timestamp": 12,
+          "description": "Step 5: Final cooking, almost done, anticipation"
+        },
+        {
+          "frame_timestamp": 14,
+          "description": "Result: Final dish, beautiful plating, satisfying"
+        },
+        {
+          "frame_timestamp": 16,
+          "description": "Taste: Person tasting, positive reaction, endorsement"
+        },
+        {
+          "frame_timestamp": 18,
+          "description": "Tips: Quick tip or variation, helpful addition"
+        },
+        {
+          "frame_timestamp": 20,
+          "description": "CTA: Recipe link or follow for more, clear call to action"
+        }
+      ],
+      "scene_level_data": {
+        "scene_count": 3,
+        "scenes": [
+          {
+            "start": 0.0,
+            "end": 8.0,
+            "description": "Setup and steps 1-2 - Ingredients and initial preparation",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 8.0,
+            "end": 16.0,
+            "description": "Cooking process - Steps 3-5, main cooking",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 16.0,
+            "end": 25.0,
+            "description": "Result and wrap-up - Final dish, taste, tips, CTA",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          }
+        ]
+      },
+      "transcript_data": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "text": "Today I'm showing you how to make this amazing dish in just 5 minutes!"
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "text": "First, gather all your ingredients. You'll need these five things."
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "text": "Step one, heat up your pan. Medium heat is perfect."
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "text": "Add your first ingredient and let it cook for about two minutes."
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "text": "Now add the rest and mix everything together. Smell that? Amazing."
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "text": "Give it another minute and you're done. Look at that!"
+        },
+        {
+          "start": 18.0,
+          "end": 21.0,
+          "text": "Quick tip: Add a little extra seasoning if you like it spicy."
+        },
+        {
+          "start": 21.0,
+          "end": 25.0,
+          "text": "That's it! Recipe in the description. Let me know if you try it!"
+        }
+      ],
+      "test_scenarios": [
+        {
+          "name": "quick_tutorial_fast",
+          "story_prompt": {
+            "target_audience": "beginners",
+            "tone": "instructional",
+            "key_message": "Quick easy recipe, clear steps, anyone can do it",
+            "desired_length": "short",
+            "story_arc": {
+              "hook": "Show final result in first 2 seconds - makes you want to cook",
+              "build": "Quick steps, easy to follow",
+              "climax": "Final dish reveal or best tip",
+              "resolution": "Recipe link and encouragement"
+            },
+            "style_preferences": {
+              "pacing": "fast",
+              "transitions": "smooth",
+              "emphasis": "on_steps"
+            }
+          },
+          "expected_edl_coverage": "50-70%",
+          "expected_segments": "8-12",
+          "expected_quality": "All steps included, clear flow, quick but complete"
+        }
+      ]
+    },
+    {
+      "video_id": "test_short_005",
+      "duration": 32.0,
+      "description": "Fitness/workout - quick exercise routine",
+      "frame_level_data": [
+        {
+          "frame_timestamp": 0,
+          "description": "Hook: Person showing results or doing impressive move, attention-grabbing"
+        },
+        {
+          "frame_timestamp": 2,
+          "description": "Warm-up: Person warming up, dynamic movement, energetic"
+        },
+        {
+          "frame_timestamp": 4,
+          "description": "Exercise 1: First exercise, good form, clear demonstration"
+        },
+        {
+          "frame_timestamp": 6,
+          "description": "Exercise 2: Second exercise, different angle, variety"
+        },
+        {
+          "frame_timestamp": 8,
+          "description": "Exercise 3: Third exercise, challenging move, impressive"
+        },
+        {
+          "frame_timestamp": 10,
+          "description": "Motivation: Person pushing through, determination, inspiring"
+        },
+        {
+          "frame_timestamp": 12,
+          "description": "Exercise 4: Fourth exercise, full body, comprehensive"
+        },
+        {
+          "frame_timestamp": 14,
+          "description": "Form check: Close-up showing proper form, educational"
+        },
+        {
+          "frame_timestamp": 16,
+          "description": "Cool down: Person cooling down, recovery, balanced"
+        },
+        {
+          "frame_timestamp": 18,
+          "description": "Results: Person showing progress or feeling good, positive"
+        },
+        {
+          "frame_timestamp": 20,
+          "description": "Encouragement: Person speaking to camera, motivational message"
+        },
+        {
+          "frame_timestamp": 22,
+          "description": "CTA: Follow for more workouts, subscribe, engagement"
+        }
+      ],
+      "scene_level_data": {
+        "scene_count": 4,
+        "scenes": [
+          {
+            "start": 0.0,
+            "end": 8.0,
+            "description": "Hook and warm-up - Attention grabber and preparation",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 8.0,
+            "end": 16.0,
+            "description": "Main exercises - Core workout, exercises 1-4",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          },
+          {
+            "start": 16.0,
+            "end": 24.0,
+            "description": "Cool down and motivation - Recovery and inspiration",
+            "metadata": {
+              "importance": "medium"
+            }
+          },
+          {
+            "start": 24.0,
+            "end": 32.0,
+            "description": "Wrap-up and CTA - Final message and call to action",
+            "metadata": {
+              "importance": "high",
+              "good_moment": true
+            }
+          }
+        ]
+      },
+      "transcript_data": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "text": "You want to get fit in just 10 minutes? Let's do this workout together!"
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "text": "First, let's warm up. Get your body ready for what's coming."
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "text": "Exercise one, squats. Keep your form tight, feel that burn."
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "text": "Exercise two, push-ups. Push through, you've got this."
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "text": "Exercise three, this one's tough but so worth it. Keep going!"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "text": "Exercise four, full body movement. This is where the magic happens."
+        },
+        {
+          "start": 18.0,
+          "end": 21.0,
+          "text": "Great job! Now let's cool down and stretch it out."
+        },
+        {
+          "start": 21.0,
+          "end": 24.0,
+          "text": "How do you feel? Stronger? More energized? That's the goal."
+        },
+        {
+          "start": 24.0,
+          "end": 28.0,
+          "text": "Do this three times a week and you'll see results. I promise."
+        },
+        {
+          "start": 28.0,
+          "end": 32.0,
+          "text": "Follow for more workouts. Let's get fit together!"
+        }
+      ],
+      "test_scenarios": [
+        {
+          "name": "high_energy_workout",
+          "story_prompt": {
+            "target_audience": "fitness_enthusiasts",
+            "tone": "motivational",
+            "key_message": "Quick effective workout, get fit fast, stay motivated",
+            "desired_length": "short",
+            "story_arc": {
+              "hook": "Show results or impressive move in first 2 seconds",
+              "build": "Fast-paced exercises, high energy",
+              "climax": "Most challenging or impressive exercise",
+              "resolution": "Motivation and encouragement to continue"
+            },
+            "style_preferences": {
+              "pacing": "very_fast",
+              "transitions": "dynamic",
+              "emphasis": "on_exercises"
+            }
+          },
+          "expected_edl_coverage": "40-60%",
+          "expected_segments": "10-14",
+          "expected_quality": "All exercises included, high energy, motivating"
+        }
+      ]
+    }
+  ],
+  "edge_case_videos": [
+    {
+      "video_id": "test_edge_001",
+      "duration": 15.0,
+      "description": "Very short video - minimal content",
+      "frame_level_data": [
+        {"frame_timestamp": 0, "description": "Opening shot"},
+        {"frame_timestamp": 5, "description": "Middle moment"},
+        {"frame_timestamp": 10, "description": "Closing shot"}
+      ],
+      "scene_level_data": {
+        "scene_count": 1,
+        "scenes": [{"start": 0.0, "end": 15.0, "description": "Single scene"}]
+      },
+      "transcript_data": [
+        {"start": 0.0, "end": 15.0, "text": "Quick message to my followers. Thanks for watching!"}
+      ],
+      "test_scenarios": [
+        {
+          "name": "minimal_content",
+          "story_prompt": {
+            "tone": "casual",
+            "desired_length": "short"
+          },
+          "expected_edl_coverage": "80-95%",
+          "expected_quality": "Preserve most content, minimal cutting"
+        }
+      ]
+    },
+    {
+      "video_id": "test_edge_002",
+      "duration": 40.0,
+      "description": "Maximum length - lots of content to cut",
+      "frame_level_data": [
+        {"frame_timestamp": 0, "description": "Frame 0 description"},
+        {"frame_timestamp": 2, "description": "Frame 2 description"},
+        {"frame_timestamp": 4, "description": "Frame 4 description"},
+        {"frame_timestamp": 6, "description": "Frame 6 description"},
+        {"frame_timestamp": 8, "description": "Frame 8 description"},
+        {"frame_timestamp": 10, "description": "Frame 10 description"},
+        {"frame_timestamp": 12, "description": "Frame 12 description"},
+        {"frame_timestamp": 14, "description": "Frame 14 description"},
+        {"frame_timestamp": 16, "description": "Frame 16 description"},
+        {"frame_timestamp": 18, "description": "Frame 18 description"},
+        {"frame_timestamp": 20, "description": "Frame 20 description"},
+        {"frame_timestamp": 22, "description": "Frame 22 description"},
+        {"frame_timestamp": 24, "description": "Frame 24 description"},
+        {"frame_timestamp": 26, "description": "Frame 26 description"},
+        {"frame_timestamp": 28, "description": "Frame 28 description"},
+        {"frame_timestamp": 30, "description": "Frame 30 description"},
+        {"frame_timestamp": 32, "description": "Frame 32 description"},
+        {"frame_timestamp": 34, "description": "Frame 34 description"},
+        {"frame_timestamp": 36, "description": "Frame 36 description"},
+        {"frame_timestamp": 38, "description": "Frame 38 description"}
+      ],
+      "scene_level_data": {
+        "scene_count": 8,
+        "scenes": [
+          {"start": 0.0, "end": 5.0, "description": "Scene 1"},
+          {"start": 5.0, "end": 10.0, "description": "Scene 2"},
+          {"start": 10.0, "end": 15.0, "description": "Scene 3"},
+          {"start": 15.0, "end": 20.0, "description": "Scene 4"},
+          {"start": 20.0, "end": 25.0, "description": "Scene 5"},
+          {"start": 25.0, "end": 30.0, "description": "Scene 6"},
+          {"start": 30.0, "end": 35.0, "description": "Scene 7"},
+          {"start": 35.0, "end": 40.0, "description": "Scene 8"}
+        ]
+      },
+      "transcript_data": [
+        {"start": 0.0, "end": 5.0, "text": "Segment 1 text"},
+        {"start": 5.0, "end": 10.0, "text": "Segment 2 text"},
+        {"start": 10.0, "end": 15.0, "text": "Segment 3 text"},
+        {"start": 15.0, "end": 20.0, "text": "Segment 4 text"},
+        {"start": 20.0, "end": 25.0, "text": "Segment 5 text"},
+        {"start": 25.0, "end": 30.0, "text": "Segment 6 text"},
+        {"start": 30.0, "end": 35.0, "text": "Segment 7 text"},
+        {"start": 35.0, "end": 40.0, "text": "Segment 8 text"}
+      ],
+      "test_scenarios": [
+        {
+          "name": "aggressive_cut",
+          "story_prompt": {
+            "desired_length": "short",
+            "key_message": "Extract only the best moments"
+          },
+          "expected_edl_coverage": "20-30%",
+          "expected_quality": "Aggressive cutting, highlights only"
+        }
+      ]
+    }
+  ]
+}
+

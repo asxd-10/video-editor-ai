@@ -1,0 +1,1207 @@
+{
+  "test_run": "2025-11-23T03:43:05.110983",
+  "target_audience": "Influencers/Shorts/Reels",
+  "max_video_length": "40 seconds",
+  "total_tests": 9,
+  "successful": 8,
+  "failed": 1,
+  "short_form_ready": 8,
+  "average_score": 100.0,
+  "results": [
+    {
+      "video_id": "test_short_001",
+      "scenario": "high_energy_hype_reel",
+      "status": "success",
+      "elapsed_seconds": 31.063978,
+      "story_prompt": {
+        "target_audience": "young_adults",
+        "tone": "energetic",
+        "key_message": "Show the most exciting moments, fast-paced, hype energy",
+        "desired_length": "short",
+        "story_arc": {
+          "hook": "Grab attention with most exciting moment in first 2 seconds",
+          "build": "Rapid fire of best moments, high energy",
+          "climax": "Most epic/adventurous moment",
+          "resolution": "Call to action, subscribe/follow"
+        },
+        "style_preferences": {
+          "pacing": "very_fast",
+          "transitions": "dynamic",
+          "emphasis": "on_highlights"
+        }
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "type": "skip",
+          "reason": "Intro is too slow for a hype reel hook."
+        },
+        {
+          "start": 2.0,
+          "end": 3.0,
+          "type": "keep",
+          "reason": "Dynamic plane takeoff visual for fast build."
+        },
+        {
+          "start": 3.0,
+          "end": 4.0,
+          "type": "skip",
+          "reason": "Skipping to next strong visual."
+        },
+        {
+          "start": 4.0,
+          "end": 5.0,
+          "type": "keep",
+          "reason": "Vibrant market scene for visual variety."
+        },
+        {
+          "start": 5.0,
+          "end": 6.0,
+          "type": "skip",
+          "reason": "Tightening pacing."
+        },
+        {
+          "start": 6.0,
+          "end": 7.0,
+          "type": "keep",
+          "reason": "Appetizing food close-up."
+        },
+        {
+          "start": 7.0,
+          "end": 10.0,
+          "type": "skip",
+          "reason": "Skipping talking head to get to action."
+        },
+        {
+          "start": 10.0,
+          "end": 12.0,
+          "type": "keep",
+          "reason": "HOOK: High energy action moment and audio setup."
+        },
+        {
+          "start": 12.0,
+          "end": 13.0,
+          "type": "keep",
+          "reason": "Energetic festival dancing visual."
+        },
+        {
+          "start": 13.0,
+          "end": 24.0,
+          "type": "skip",
+          "reason": "Skipping slower moments to jump to climax."
+        },
+        {
+          "start": 24.0,
+          "end": 26.0,
+          "type": "keep",
+          "reason": "CLIMAX: Epic adventure hiking shot.",
+          "transition_type": "zoom",
+          "transition_duration": 0.5
+        },
+        {
+          "start": 26.0,
+          "end": 36.0,
+          "type": "skip",
+          "reason": "Skipping emotional wrap-up to get straight to CTA."
+        },
+        {
+          "start": 36.0,
+          "end": 38.5,
+          "type": "keep",
+          "reason": "RESOLUTION: Essential call to action."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 10.0,
+        "climax_timestamp": 24.0,
+        "resolution_timestamp": 36.0
+      },
+      "key_moments": [
+        {
+          "start": 10.0,
+          "end": 12.0,
+          "importance": "high",
+          "reason": "Most dynamic action shot (surfing/dancing) with high energy audio, perfect for grabbing attention immediately.",
+          "story_role": "hook"
+        },
+        {
+          "start": 24.0,
+          "end": 26.0,
+          "importance": "high",
+          "reason": "Epic adventure shot (hiking/climbing) serving as the peak visual moment of the trip.",
+          "story_role": "climax"
+        },
+        {
+          "start": 36.0,
+          "end": 38.5,
+          "importance": "high",
+          "reason": "Direct call to action to subscribe, essential for influencer goals.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "total_duration": 10.5,
+          "segment_count": 13,
+          "coverage_percentage": 27.27272727272727,
+          "hook_effectiveness": "good",
+          "pacing_score": 100,
+          "story_arc_score": 100,
+          "transition_quality": "smooth",
+          "flow_score": 100
+        },
+        "issues": [],
+        "strengths": [
+          "Strong hook in first 2 seconds",
+          "Perfect pacing for short edit",
+          "Story arc moments included in edit",
+          "Smooth transitions throughout",
+          "Good flow, logical sequence"
+        ],
+        "score": 100,
+        "short_form_ready": true
+      },
+      "expected": "Fast cuts, high energy, highlights only",
+      "timestamp": "2025-11-23T03:39:48.366001"
+    },
+    {
+      "video_id": "test_short_001",
+      "scenario": "nostalgic_summer_vibes",
+      "status": "success",
+      "elapsed_seconds": 28.705554,
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "nostalgic",
+        "key_message": "End of summer, warm memories, emotional connection",
+        "desired_length": "medium",
+        "story_arc": {
+          "hook": "Beautiful opening shot that sets the mood",
+          "build": "Build emotional connection, show experiences",
+          "climax": "Most meaningful/emotional moment",
+          "resolution": "Reflective ending, warm feeling"
+        },
+        "style_preferences": {
+          "pacing": "moderate",
+          "transitions": "smooth",
+          "emphasis": "on_emotion"
+        }
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "type": "skip",
+          "reason": "Skip airport intro to start with more cinematic travel imagery."
+        },
+        {
+          "start": 2.0,
+          "end": 7.0,
+          "type": "keep",
+          "reason": "Hook: Plane takeoff into vibrant market arrival and food close-up. Sets mood and shows destination quickly."
+        },
+        {
+          "start": 7.0,
+          "end": 12.0,
+          "type": "skip",
+          "reason": "Skip intermediate food/action shots to manage pacing."
+        },
+        {
+          "start": 12.0,
+          "end": 16.0,
+          "type": "keep",
+          "reason": "Build: Cultural vibrancy (festival) transitioning into personal connection (laughing with locals)."
+        },
+        {
+          "start": 16.0,
+          "end": 18.0,
+          "type": "skip",
+          "reason": "Skip landmark shot to prioritize nature and emotion."
+        },
+        {
+          "start": 18.0,
+          "end": 20.0,
+          "type": "keep",
+          "reason": "Build: Scenic beach view to establish the beauty of the location."
+        },
+        {
+          "start": 20.0,
+          "end": 26.0,
+          "type": "skip",
+          "reason": "Skip night/adventure scenes to build tension towards the emotional climax."
+        },
+        {
+          "start": 26.0,
+          "end": 30.0,
+          "type": "keep",
+          "reason": "Climax: Reflective moment combined with happy group shot. Audio: 'This place has my heart.'"
+        },
+        {
+          "start": 30.0,
+          "end": 32.0,
+          "type": "skip",
+          "reason": "Skip extra location shot to move straight to resolution."
+        },
+        {
+          "start": 32.0,
+          "end": 36.5,
+          "type": "keep",
+          "reason": "Resolution: Sunset shot for closure, transitioning to waving goodbye and final CTA."
+        },
+        {
+          "start": 36.5,
+          "end": 38.5,
+          "type": "skip",
+          "reason": "End card not needed as CTA is delivered on camera."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 2.0,
+        "climax_timestamp": 26.0,
+        "resolution_timestamp": 32.0
+      },
+      "key_moments": [
+        {
+          "start": 2.0,
+          "end": 4.0,
+          "importance": "high",
+          "reason": "Dramatic golden hour plane takeoff sets a beautiful, nostalgic mood immediately.",
+          "story_role": "hook"
+        },
+        {
+          "start": 14.0,
+          "end": 16.0,
+          "importance": "high",
+          "reason": "Authentic laughter and connection with locals embodies the 'warm memories' theme.",
+          "story_role": "build"
+        },
+        {
+          "start": 26.0,
+          "end": 28.0,
+          "importance": "high",
+          "reason": "Contemplative reflection with emotional audio ('This place has my heart') serves as the emotional peak.",
+          "story_role": "climax"
+        },
+        {
+          "start": 32.0,
+          "end": 34.0,
+          "importance": "high",
+          "reason": "Final sunset shot provides a sense of closure and lasting beauty before the CTA.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "total_duration": 19.5,
+          "segment_count": 11,
+          "coverage_percentage": 50.649350649350644,
+          "hook_effectiveness": "good",
+          "pacing_score": 100,
+          "story_arc_score": 100,
+          "transition_quality": "smooth",
+          "flow_score": 100
+        },
+        "issues": [],
+        "strengths": [
+          "Strong hook in first 2 seconds",
+          "Perfect pacing for medium edit",
+          "Story arc moments included in edit",
+          "Smooth transitions throughout",
+          "Good flow, logical sequence"
+        ],
+        "score": 100,
+        "short_form_ready": true
+      },
+      "expected": "Smooth transitions, emotional beats, preserves mood",
+      "timestamp": "2025-11-23T03:40:17.075252"
+    },
+    {
+      "video_id": "test_short_001",
+      "scenario": "quick_tips_tutorial",
+      "status": "failed",
+      "error": "Invalid JSON response from LLM: Unterminated string starting at: line 7 column 3 (char 121)",
+      "timestamp": "2025-11-23T03:40:52.094222"
+    },
+    {
+      "video_id": "test_short_002",
+      "scenario": "quick_review_short",
+      "status": "success",
+      "elapsed_seconds": 27.81635,
+      "story_prompt": {
+        "target_audience": "shoppers",
+        "tone": "informative",
+        "key_message": "Quick honest review, key features, worth it or not",
+        "desired_length": "short",
+        "story_arc": {
+          "hook": "Product reveal or key feature in first 2 seconds",
+          "build": "Show features and benefits quickly",
+          "climax": "Honest opinion or verdict",
+          "resolution": "Clear recommendation and CTA"
+        },
+        "style_preferences": {
+          "pacing": "fast",
+          "transitions": "smooth",
+          "emphasis": "on_features"
+        }
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 8.0,
+          "type": "skip",
+          "reason": "Skip intro to start with the strongest feature hook."
+        },
+        {
+          "start": 4.0,
+          "end": 6.0,
+          "type": "keep",
+          "reason": "Build: Nice visual close-up of the product."
+        },
+        {
+          "start": 6.0,
+          "end": 14.0,
+          "type": "skip",
+          "reason": "Skip redundant demo and comparison setup to keep pacing fast."
+        },
+        {
+          "start": 8.0,
+          "end": 10.5,
+          "type": "keep",
+          "reason": "Hook: Main feature reveal ('Watch this')."
+        },
+        {
+          "start": 14.0,
+          "end": 16.0,
+          "type": "keep",
+          "reason": "Build: Strong impact statement ('difference is night and day')."
+        },
+        {
+          "start": 16.0,
+          "end": 24.0,
+          "type": "skip",
+          "reason": "Skip usage details and price discussion to get straight to the verdict."
+        },
+        {
+          "start": 24.0,
+          "end": 27.0,
+          "type": "keep",
+          "reason": "Climax: Final score and recommendation (8/10, Yes)."
+        },
+        {
+          "start": 27.0,
+          "end": 28.0,
+          "type": "skip",
+          "reason": "Tighten gap before CTA."
+        },
+        {
+          "start": 28.0,
+          "end": 31.0,
+          "type": "keep",
+          "reason": "Resolution: Clear CTA ('Link in bio')."
+        },
+        {
+          "start": 31.0,
+          "end": 35.0,
+          "type": "skip",
+          "reason": "End video after CTA."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 8.0,
+        "climax_timestamp": 24.0,
+        "resolution_timestamp": 28.0
+      },
+      "key_moments": [
+        {
+          "start": 8.0,
+          "end": 10.5,
+          "importance": "high",
+          "reason": "Immediate engagement by showing the main feature everyone talks about.",
+          "story_role": "hook"
+        },
+        {
+          "start": 4.0,
+          "end": 6.0,
+          "importance": "medium",
+          "reason": "Visual close-up of the product to establish what it looks like.",
+          "story_role": "build"
+        },
+        {
+          "start": 14.0,
+          "end": 16.0,
+          "importance": "high",
+          "reason": "Strong benefit statement comparing it to previous versions.",
+          "story_role": "build"
+        },
+        {
+          "start": 24.0,
+          "end": 27.0,
+          "importance": "high",
+          "reason": "The final verdict and rating, crucial for a review.",
+          "story_role": "climax"
+        },
+        {
+          "start": 28.0,
+          "end": 31.0,
+          "importance": "high",
+          "reason": "Clear call to action for interested shoppers.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "total_duration": 12.5,
+          "segment_count": 10,
+          "coverage_percentage": 35.714285714285715,
+          "hook_effectiveness": "good",
+          "pacing_score": 100,
+          "story_arc_score": 100,
+          "transition_quality": "mostly_smooth",
+          "flow_score": 100
+        },
+        "issues": [
+          "1 large gaps (>3s) - may need transitions"
+        ],
+        "strengths": [
+          "Strong hook in first 2 seconds",
+          "Perfect pacing for short edit",
+          "Story arc moments included in edit",
+          "Good flow, logical sequence"
+        ],
+        "score": 100,
+        "short_form_ready": true
+      },
+      "expected": "Clear features, honest opinion, quick but informative",
+      "timestamp": "2025-11-23T03:41:19.914420"
+    },
+    {
+      "video_id": "test_short_003",
+      "scenario": "aesthetic_lifestyle",
+      "status": "success",
+      "elapsed_seconds": 26.419476,
+      "story_prompt": {
+        "target_audience": "lifestyle_enthusiasts",
+        "tone": "aesthetic",
+        "key_message": "Show beautiful moments, aesthetic lifestyle, aspirational",
+        "desired_length": "medium",
+        "story_arc": {
+          "hook": "Beautiful opening shot, aesthetic vibe",
+          "build": "Show lifestyle moments, aesthetic shots",
+          "climax": "Most beautiful or aspirational moment",
+          "resolution": "Personal connection, follow for more"
+        },
+        "style_preferences": {
+          "pacing": "moderate",
+          "transitions": "smooth",
+          "emphasis": "on_aesthetic"
+        }
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "type": "keep",
+          "reason": "Hook: Aesthetic wake-up shot."
+        },
+        {
+          "start": 2.0,
+          "end": 3.5,
+          "type": "keep",
+          "reason": "Build: Coffee making scene."
+        },
+        {
+          "start": 3.5,
+          "end": 4.0,
+          "type": "skip",
+          "reason": "Tighten pacing."
+        },
+        {
+          "start": 4.0,
+          "end": 5.5,
+          "type": "keep",
+          "reason": "Build: Skincare routine."
+        },
+        {
+          "start": 5.5,
+          "end": 12.0,
+          "type": "skip",
+          "reason": "Skip outfit, breakfast, and work to maintain fast pace."
+        },
+        {
+          "start": 12.0,
+          "end": 13.5,
+          "type": "keep",
+          "reason": "Build: Quick exercise shot for active lifestyle vibe."
+        },
+        {
+          "start": 13.5,
+          "end": 14.0,
+          "type": "skip",
+          "reason": "Tighten pacing."
+        },
+        {
+          "start": 14.0,
+          "end": 16.0,
+          "type": "keep",
+          "reason": "Climax: Aspirational outdoor moment."
+        },
+        {
+          "start": 16.0,
+          "end": 18.0,
+          "type": "skip",
+          "reason": "Skip social moment to focus on personal routine arc."
+        },
+        {
+          "start": 18.0,
+          "end": 19.5,
+          "type": "keep",
+          "reason": "Resolution start: Cozy evening wind-down."
+        },
+        {
+          "start": 19.5,
+          "end": 24.0,
+          "type": "skip",
+          "reason": "Skip reflection to get straight to the final CTA."
+        },
+        {
+          "start": 24.0,
+          "end": 28.0,
+          "type": "keep",
+          "reason": "Resolution end: Final message and strong CTA."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0.0,
+        "climax_timestamp": 14.0,
+        "resolution_timestamp": 24.0
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "importance": "high",
+          "reason": "Aesthetic wake-up shot with natural light, perfect for an immediate hook.",
+          "story_role": "hook"
+        },
+        {
+          "start": 2.0,
+          "end": 3.5,
+          "importance": "medium",
+          "reason": "Cozy coffee making scene, essential for the morning routine vibe.",
+          "story_role": "build"
+        },
+        {
+          "start": 4.0,
+          "end": 5.5,
+          "importance": "medium",
+          "reason": "Skincare application, emphasizing self-care and aesthetics.",
+          "story_role": "build"
+        },
+        {
+          "start": 14.0,
+          "end": 16.0,
+          "importance": "high",
+          "reason": "Aspirational outdoor shot, representing a peak moment of the day.",
+          "story_role": "climax"
+        },
+        {
+          "start": 24.0,
+          "end": 28.0,
+          "importance": "high",
+          "reason": "Direct-to-camera personal message and call to action for engagement.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "total_duration": 14.0,
+          "segment_count": 12,
+          "coverage_percentage": 50.0,
+          "hook_effectiveness": "good",
+          "pacing_score": 100,
+          "story_arc_score": 100,
+          "transition_quality": "smooth",
+          "flow_score": 100
+        },
+        "issues": [],
+        "strengths": [
+          "Strong hook in first 2 seconds",
+          "Perfect pacing for medium edit",
+          "Story arc moments included in edit",
+          "Smooth transitions throughout",
+          "Good flow, logical sequence"
+        ],
+        "score": 100,
+        "short_form_ready": true
+      },
+      "expected": "Aesthetic shots, smooth flow, lifestyle vibes",
+      "timestamp": "2025-11-23T03:41:46.337737"
+    },
+    {
+      "video_id": "test_short_004",
+      "scenario": "quick_tutorial_fast",
+      "status": "success",
+      "elapsed_seconds": 22.301456,
+      "story_prompt": {
+        "target_audience": "beginners",
+        "tone": "instructional",
+        "key_message": "Quick easy recipe, clear steps, anyone can do it",
+        "desired_length": "short",
+        "story_arc": {
+          "hook": "Show final result in first 2 seconds - makes you want to cook",
+          "build": "Quick steps, easy to follow",
+          "climax": "Final dish reveal or best tip",
+          "resolution": "Recipe link and encouragement"
+        },
+        "style_preferences": {
+          "pacing": "fast",
+          "transitions": "smooth",
+          "emphasis": "on_steps"
+        }
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "type": "keep",
+          "reason": "Hook: Immediate visual of final dish with intro audio."
+        },
+        {
+          "start": 2.0,
+          "end": 4.0,
+          "type": "keep",
+          "reason": "Build: Quick shot of ingredients."
+        },
+        {
+          "start": 4.0,
+          "end": 8.0,
+          "type": "skip",
+          "reason": "Skip initial heating steps to fasten pacing."
+        },
+        {
+          "start": 8.0,
+          "end": 8.5,
+          "type": "transition",
+          "reason": "",
+          "transition_type": "crossfade",
+          "transition_duration": 0.5
+        },
+        {
+          "start": 8.5,
+          "end": 10.5,
+          "type": "keep",
+          "reason": "Build: Active cooking/sizzling visual."
+        },
+        {
+          "start": 10.5,
+          "end": 14.0,
+          "type": "skip",
+          "reason": "Skip intermediate mixing steps."
+        },
+        {
+          "start": 14.0,
+          "end": 14.5,
+          "type": "transition",
+          "reason": "",
+          "transition_type": "crossfade",
+          "transition_duration": 0.5
+        },
+        {
+          "start": 14.5,
+          "end": 16.5,
+          "type": "keep",
+          "reason": "Climax: Final dish reveal with 'Look at that' audio."
+        },
+        {
+          "start": 16.5,
+          "end": 21.0,
+          "type": "skip",
+          "reason": "Skip tasting and tips to get straight to CTA."
+        },
+        {
+          "start": 21.0,
+          "end": 21.5,
+          "type": "transition",
+          "reason": "",
+          "transition_type": "crossfade",
+          "transition_duration": 0.5
+        },
+        {
+          "start": 21.5,
+          "end": 24.5,
+          "type": "keep",
+          "reason": "Resolution: Strong final CTA."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0.0,
+        "climax_timestamp": 14.5,
+        "resolution_timestamp": 21.5
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "importance": "high",
+          "reason": "Perfect hook showing the final appetizing dish immediately to grab attention.",
+          "story_role": "hook"
+        },
+        {
+          "start": 2.0,
+          "end": 4.0,
+          "importance": "medium",
+          "reason": "Quick visual of ingredients sets up the 'easy' aspect of the recipe.",
+          "story_role": "build"
+        },
+        {
+          "start": 8.0,
+          "end": 10.0,
+          "importance": "high",
+          "reason": "Dynamic sizzling visual represents the core cooking action.",
+          "story_role": "build"
+        },
+        {
+          "start": 14.0,
+          "end": 16.0,
+          "importance": "high",
+          "reason": "The final reveal of the cooked dish, matching the audio 'Look at that!'.",
+          "story_role": "climax"
+        },
+        {
+          "start": 21.0,
+          "end": 24.0,
+          "importance": "high",
+          "reason": "Clear Call to Action directing viewers to the recipe link.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "total_duration": 11.0,
+          "segment_count": 11,
+          "coverage_percentage": 44.0,
+          "hook_effectiveness": "good",
+          "pacing_score": 100,
+          "story_arc_score": 100,
+          "transition_quality": "smooth",
+          "flow_score": 80
+        },
+        "issues": [
+          "3 very short segments (<1s) - may feel rushed"
+        ],
+        "strengths": [
+          "Strong hook in first 2 seconds",
+          "Perfect pacing for short edit",
+          "Story arc moments included in edit",
+          "Smooth transitions throughout"
+        ],
+        "score": 100,
+        "short_form_ready": true
+      },
+      "expected": "All steps included, clear flow, quick but complete",
+      "timestamp": "2025-11-23T03:42:08.642757"
+    },
+    {
+      "video_id": "test_short_005",
+      "scenario": "high_energy_workout",
+      "status": "success",
+      "elapsed_seconds": 22.734849,
+      "story_prompt": {
+        "target_audience": "fitness_enthusiasts",
+        "tone": "motivational",
+        "key_message": "Quick effective workout, get fit fast, stay motivated",
+        "desired_length": "short",
+        "story_arc": {
+          "hook": "Show results or impressive move in first 2 seconds",
+          "build": "Fast-paced exercises, high energy",
+          "climax": "Most challenging or impressive exercise",
+          "resolution": "Motivation and encouragement to continue"
+        },
+        "style_preferences": {
+          "pacing": "very_fast",
+          "transitions": "dynamic",
+          "emphasis": "on_exercises"
+        }
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 2.5,
+          "type": "keep",
+          "reason": "Hook: Engaging intro and promise."
+        },
+        {
+          "start": 2.5,
+          "end": 4.0,
+          "type": "keep",
+          "reason": "Build: Quick warm-up shot."
+        },
+        {
+          "start": 4.0,
+          "end": 4.5,
+          "type": "skip",
+          "reason": "Skip for pacing."
+        },
+        {
+          "start": 4.5,
+          "end": 6.0,
+          "type": "keep",
+          "reason": "Build: Exercise 1 (squats)."
+        },
+        {
+          "start": 6.0,
+          "end": 6.5,
+          "type": "skip",
+          "reason": "Skip for pacing."
+        },
+        {
+          "start": 6.5,
+          "end": 8.0,
+          "type": "keep",
+          "reason": "Build: Exercise 2."
+        },
+        {
+          "start": 8.0,
+          "end": 8.5,
+          "type": "skip",
+          "reason": "Skip for pacing."
+        },
+        {
+          "start": 8.5,
+          "end": 10.0,
+          "type": "keep",
+          "reason": "Build: Exercise 3 (challenging)."
+        },
+        {
+          "start": 10.0,
+          "end": 10.5,
+          "type": "skip",
+          "reason": "Skip for pacing."
+        },
+        {
+          "start": 10.5,
+          "end": 12.0,
+          "type": "keep",
+          "reason": "Build: Motivational push."
+        },
+        {
+          "start": 12.0,
+          "end": 12.5,
+          "type": "transition",
+          "reason": "",
+          "transition_type": "zoom",
+          "transition_duration": 0.5
+        },
+        {
+          "start": 12.5,
+          "end": 15.0,
+          "type": "keep",
+          "reason": "Climax: Exercise 4 (full body)."
+        },
+        {
+          "start": 15.0,
+          "end": 16.5,
+          "type": "transition",
+          "reason": "",
+          "transition_type": "crossfade",
+          "transition_duration": 0.5
+        },
+        {
+          "start": 16.5,
+          "end": 18.0,
+          "type": "keep",
+          "reason": "Resolution: Cool down."
+        },
+        {
+          "start": 18.0,
+          "end": 18.5,
+          "type": "skip",
+          "reason": "Skip for pacing."
+        },
+        {
+          "start": 18.5,
+          "end": 21.0,
+          "type": "keep",
+          "reason": "Resolution: Feeling stronger/results."
+        },
+        {
+          "start": 21.0,
+          "end": 24.5,
+          "type": "skip",
+          "reason": "Skip less essential dialogue."
+        },
+        {
+          "start": 24.5,
+          "end": 27.0,
+          "type": "keep",
+          "reason": "Resolution: Actionable advice."
+        },
+        {
+          "start": 27.0,
+          "end": 28.5,
+          "type": "skip",
+          "reason": "Skip for pacing before CTA."
+        },
+        {
+          "start": 28.5,
+          "end": 31.5,
+          "type": "keep",
+          "reason": "Resolution: Final CTA."
+        },
+        {
+          "start": 31.5,
+          "end": 32.0,
+          "type": "skip",
+          "reason": "End of video."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0.0,
+        "climax_timestamp": 12.5,
+        "resolution_timestamp": 28.5
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 2.5,
+          "importance": "high",
+          "reason": "Engaging hook with a clear promise of results in 10 minutes.",
+          "story_role": "hook"
+        },
+        {
+          "start": 12.5,
+          "end": 15.0,
+          "importance": "high",
+          "reason": "Climax moment showing the most challenging 'full body movement'.",
+          "story_role": "climax"
+        },
+        {
+          "start": 28.5,
+          "end": 31.5,
+          "importance": "high",
+          "reason": "Strong call to action to follow for more workouts.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "total_duration": 22.0,
+          "segment_count": 21,
+          "coverage_percentage": 68.75,
+          "hook_effectiveness": "good",
+          "pacing_score": 100,
+          "story_arc_score": 100,
+          "transition_quality": "smooth",
+          "flow_score": 80
+        },
+        "issues": [
+          "7 very short segments (<1s) - may feel rushed"
+        ],
+        "strengths": [
+          "Strong hook in first 2 seconds",
+          "Perfect pacing for short edit",
+          "Story arc moments included in edit",
+          "Smooth transitions throughout"
+        ],
+        "score": 100,
+        "short_form_ready": true
+      },
+      "expected": "All exercises included, high energy, motivating",
+      "timestamp": "2025-11-23T03:42:31.381058"
+    },
+    {
+      "video_id": "test_edge_001",
+      "scenario": "minimal_content",
+      "status": "success",
+      "elapsed_seconds": 13.893728,
+      "story_prompt": {
+        "tone": "casual",
+        "desired_length": "short"
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 2.5,
+          "type": "keep",
+          "reason": "Hook: Starts the quick message directly."
+        },
+        {
+          "start": 2.5,
+          "end": 9.0,
+          "type": "skip",
+          "reason": "Skip: Remove less essential middle part for pacing."
+        },
+        {
+          "start": 9.0,
+          "end": 13.0,
+          "type": "keep",
+          "reason": "Climax/Resolution: Delivers the main message of thanks."
+        },
+        {
+          "start": 13.0,
+          "end": 15.0,
+          "type": "skip",
+          "reason": "Skip: Trim the very end for a tight finish."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0.0,
+        "climax_timestamp": 9.0,
+        "resolution_timestamp": 12.5
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 2.5,
+          "importance": "high",
+          "reason": "Starts the quick message directly, serving as the hook.",
+          "story_role": "hook"
+        },
+        {
+          "start": 9.0,
+          "end": 13.0,
+          "importance": "high",
+          "reason": "Delivers the main message of thanks, acting as the climax and resolution.",
+          "story_role": "climax"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "total_duration": 6.5,
+          "segment_count": 4,
+          "coverage_percentage": 43.333333333333336,
+          "hook_effectiveness": "good",
+          "pacing_score": 100,
+          "story_arc_score": 100,
+          "transition_quality": "smooth",
+          "flow_score": 100
+        },
+        "issues": [],
+        "strengths": [
+          "Strong hook in first 2 seconds",
+          "Perfect pacing for short edit",
+          "Story arc moments included in edit",
+          "Smooth transitions throughout",
+          "Good flow, logical sequence"
+        ],
+        "score": 100,
+        "short_form_ready": true
+      },
+      "expected": "Preserve most content, minimal cutting",
+      "timestamp": "2025-11-23T03:42:45.277362"
+    },
+    {
+      "video_id": "test_edge_002",
+      "scenario": "aggressive_cut",
+      "status": "success",
+      "elapsed_seconds": 19.830483,
+      "story_prompt": {
+        "desired_length": "short",
+        "key_message": "Extract only the best moments"
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "type": "keep",
+          "reason": "Hook: Start with the most engaging initial 2 seconds."
+        },
+        {
+          "start": 2.0,
+          "end": 12.0,
+          "type": "skip",
+          "reason": "Skip: Remove slower pacing to get to the build faster."
+        },
+        {
+          "start": 12.0,
+          "end": 14.0,
+          "type": "keep",
+          "reason": "Build: Key progression moment."
+        },
+        {
+          "start": 14.0,
+          "end": 26.0,
+          "type": "skip",
+          "reason": "Skip: Remove redundant content between build and climax."
+        },
+        {
+          "start": 26.0,
+          "end": 28.0,
+          "type": "keep",
+          "reason": "Climax: The peak moment of the video."
+        },
+        {
+          "start": 28.0,
+          "end": 38.0,
+          "type": "skip",
+          "reason": "Skip: Jump straight to the conclusion."
+        },
+        {
+          "start": 38.0,
+          "end": 40.0,
+          "type": "keep",
+          "reason": "Resolution: Final 2 seconds for conclusion and CTA."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0.0,
+        "climax_timestamp": 26.0,
+        "resolution_timestamp": 38.0
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "importance": "high",
+          "reason": "Initial engaging moment to grab viewer attention immediately (Hook).",
+          "story_role": "hook"
+        },
+        {
+          "start": 12.0,
+          "end": 14.0,
+          "importance": "medium",
+          "reason": "Mid-point progression showing the development of the topic.",
+          "story_role": "build"
+        },
+        {
+          "start": 26.0,
+          "end": 28.0,
+          "importance": "high",
+          "reason": "Peak moment of the video representing the main point or reveal.",
+          "story_role": "climax"
+        },
+        {
+          "start": 38.0,
+          "end": 40.0,
+          "importance": "high",
+          "reason": "Final concluding thought and call to action.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "total_duration": 8.0,
+          "segment_count": 7,
+          "coverage_percentage": 20.0,
+          "hook_effectiveness": "good",
+          "pacing_score": 100,
+          "story_arc_score": 100,
+          "transition_quality": "smooth",
+          "flow_score": 100
+        },
+        "issues": [],
+        "strengths": [
+          "Strong hook in first 2 seconds",
+          "Perfect pacing for short edit",
+          "Story arc moments included in edit",
+          "Smooth transitions throughout",
+          "Good flow, logical sequence"
+        ],
+        "score": 100,
+        "short_form_ready": true
+      },
+      "expected": "Aggressive cutting, highlights only",
+      "timestamp": "2025-11-23T03:43:05.110634"
+    }
+  ]
+}

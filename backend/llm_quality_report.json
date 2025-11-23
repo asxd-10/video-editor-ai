@@ -1,0 +1,736 @@
+{
+  "test_run": "2025-11-23T02:09:24.499094",
+  "total_scenarios": 8,
+  "successful": 8,
+  "failed": 0,
+  "skipped": 0,
+  "average_score": 75.625,
+  "results": [
+    {
+      "scenario": "Educational Video - Short Edit",
+      "video_id": "3cbd5a10-7d57-4304-9d03-6b532fe5fe01",
+      "status": "success",
+      "elapsed_seconds": 26.038765,
+      "story_prompt": {
+        "target_audience": "students",
+        "tone": "educational",
+        "key_message": "Focus on main concepts and examples",
+        "desired_length": "short",
+        "story_arc": {
+          "hook": "Start with a question or problem",
+          "build": "Explain concepts clearly",
+          "climax": "Show practical example",
+          "resolution": "Summarize key takeaways"
+        },
+        "style_preferences": {
+          "pacing": "fast",
+          "transitions": "smooth",
+          "emphasis": "on_examples"
+        }
+      },
+      "summary": {
+        "video_summary": "Educational tutorial explaining a technical concept with examples",
+        "content_type": "tutorial",
+        "main_topics": [
+          "concept explanation",
+          "examples",
+          "practical applications"
+        ],
+        "speaker_style": "professional"
+      },
+      "edl": [
+        {
+          "start": 30.0,
+          "end": 60.0,
+          "type": "keep",
+          "reason": "Hook segment."
+        },
+        {
+          "start": 60.0,
+          "end": 600.0,
+          "type": "transition",
+          "reason": "Time jump to concepts.",
+          "transition_type": "crossfade",
+          "transition_duration": 1.0
+        },
+        {
+          "start": 600.0,
+          "end": 720.0,
+          "type": "keep",
+          "reason": "Build segment (concepts)."
+        },
+        {
+          "start": 720.0,
+          "end": 1800.0,
+          "type": "transition",
+          "reason": "Time jump to example.",
+          "transition_type": "zoom",
+          "transition_duration": 0.5
+        },
+        {
+          "start": 1800.0,
+          "end": 2040.0,
+          "type": "keep",
+          "reason": "Climax segment (practical example)."
+        },
+        {
+          "start": 2040.0,
+          "end": 3540.0,
+          "type": "transition",
+          "reason": "Time jump to summary.",
+          "transition_type": "fade",
+          "transition_duration": 1.0
+        },
+        {
+          "start": 3540.0,
+          "end": 3600.0,
+          "type": "keep",
+          "reason": "Resolution segment."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 30.0,
+        "climax_timestamp": 1800.0,
+        "resolution_timestamp": 3540.0
+      },
+      "key_moments": [
+        {
+          "start": 30.0,
+          "end": 60.0,
+          "importance": "high",
+          "reason": "Hypothetical segment introducing the core problem statement to hook students.",
+          "story_role": "hook"
+        },
+        {
+          "start": 600.0,
+          "end": 720.0,
+          "importance": "medium",
+          "reason": "Hypothetical segment explaining foundational concepts clearly.",
+          "story_role": "build"
+        },
+        {
+          "start": 1800.0,
+          "end": 2040.0,
+          "importance": "high",
+          "reason": "Hypothetical segment showing the main practical example, addressing the emphasis requirement.",
+          "story_role": "climax"
+        },
+        {
+          "start": 3540.0,
+          "end": 3600.0,
+          "importance": "medium",
+          "reason": "Hypothetical segment summarizing key takeaways for the conclusion.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "segment_count": 7,
+          "total_duration": 3570.0,
+          "coverage_percentage": 99.01152116864186,
+          "average_segment_length": 510.0,
+          "has_transitions": true,
+          "valid_timestamps": true,
+          "story_alignment": "unknown"
+        },
+        "issues": [
+          "Desired 'short' edit but duration is >30% of original"
+        ],
+        "score": 100
+      },
+      "expected_behavior": "Should create a concise edit focusing on key concepts and examples, removing filler",
+      "timestamp": "2025-11-23T02:07:21.422532"
+    },
+    {
+      "scenario": "Vlog - Casual, Engaging",
+      "video_id": "3cbd5a10-7d57-4304-9d03-6b532fe5fe01",
+      "status": "success",
+      "elapsed_seconds": 25.082188,
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "casual",
+        "key_message": "Show personality and authentic moments",
+        "desired_length": "medium",
+        "story_arc": {
+          "hook": "Grab attention in first 3 seconds",
+          "build": "Build connection with audience",
+          "climax": "Main story or revelation",
+          "resolution": "Call to action or reflection"
+        },
+        "style_preferences": {
+          "pacing": "moderate",
+          "transitions": "smooth",
+          "emphasis": "on_personality"
+        }
+      },
+      "summary": {
+        "video_summary": "Casual vlog sharing daily experiences and thoughts",
+        "content_type": "vlog",
+        "main_topics": [
+          "daily life",
+          "personal thoughts",
+          "experiences"
+        ],
+        "speaker_style": "casual"
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 15.0,
+          "type": "keep",
+          "reason": "Hook: Intro segment."
+        },
+        {
+          "start": 120.0,
+          "end": 180.0,
+          "type": "keep",
+          "reason": "Build 1: Establishing the day's activity."
+        },
+        {
+          "start": 600.0,
+          "end": 660.0,
+          "type": "keep",
+          "reason": "Build 2: Personality moment."
+        },
+        {
+          "start": 1800.0,
+          "end": 1920.0,
+          "type": "keep",
+          "reason": "Climax: Main event."
+        },
+        {
+          "start": 3500.0,
+          "end": 3560.0,
+          "type": "keep",
+          "reason": "Resolution: Outro and reflection."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0.0,
+        "climax_timestamp": 1800.0,
+        "resolution_timestamp": 3500.0
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 15.0,
+          "importance": "high",
+          "reason": "Initial greeting and setting the stage for the day's vlog. Grabs attention immediately.",
+          "story_role": "hook"
+        },
+        {
+          "start": 120.0,
+          "end": 180.0,
+          "importance": "medium",
+          "reason": "Establishing shot of the location or activity, building context for the viewer.",
+          "story_role": "build"
+        },
+        {
+          "start": 600.0,
+          "end": 660.0,
+          "importance": "medium",
+          "reason": "A relatable personality moment or minor obstacle encountered during the day, deepening connection.",
+          "story_role": "build"
+        },
+        {
+          "start": 1800.0,
+          "end": 1920.0,
+          "importance": "high",
+          "reason": "The main event or realization of the vlog. This is the peak interest point.",
+          "story_role": "climax"
+        },
+        {
+          "start": 3500.0,
+          "end": 3560.0,
+          "importance": "medium",
+          "reason": "End-of-day reflection, summarizing thoughts and signing off.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "segment_count": 5,
+          "total_duration": 315.0,
+          "coverage_percentage": 8.736310691350752,
+          "average_segment_length": 63.0,
+          "has_transitions": false,
+          "valid_timestamps": true,
+          "story_alignment": "unknown",
+          "large_gaps": 4
+        },
+        "issues": [
+          "Found 4 large gaps (>5s) - may indicate missing content"
+        ],
+        "score": 100
+      },
+      "expected_behavior": "Should preserve authentic moments, remove dead air, maintain casual feel",
+      "timestamp": "2025-11-23T02:07:46.935932"
+    },
+    {
+      "scenario": "Tutorial - Detailed Step-by-Step",
+      "video_id": "3cbd5a10-7d57-4304-9d03-6b532fe5fe01",
+      "status": "success",
+      "elapsed_seconds": 27.014309,
+      "story_prompt": {
+        "target_audience": "beginners",
+        "tone": "instructional",
+        "key_message": "Clear step-by-step instructions",
+        "desired_length": "long",
+        "story_arc": {
+          "hook": "Show end result or preview",
+          "build": "Step-by-step instructions",
+          "climax": "Key technique or tip",
+          "resolution": "Final result and next steps"
+        },
+        "style_preferences": {
+          "pacing": "slow",
+          "transitions": "smooth",
+          "emphasis": "on_steps"
+        }
+      },
+      "summary": {
+        "video_summary": "Detailed tutorial with step-by-step instructions",
+        "content_type": "tutorial",
+        "main_topics": [
+          "step 1",
+          "step 2",
+          "step 3",
+          "tips"
+        ],
+        "speaker_style": "instructional"
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 300.0,
+          "type": "keep",
+          "reason": "Retain full introduction and preview for beginners."
+        },
+        {
+          "start": 300.0,
+          "end": 302.0,
+          "type": "transition",
+          "reason": "Transition to Step 1.",
+          "transition_type": "crossfade",
+          "transition_duration": 2.0
+        },
+        {
+          "start": 302.0,
+          "end": 1200.0,
+          "type": "keep",
+          "reason": "Keep entire Step 1 segment for slow-paced instruction."
+        },
+        {
+          "start": 1200.0,
+          "end": 1202.0,
+          "type": "transition",
+          "reason": "Transition to Step 2.",
+          "transition_type": "crossfade",
+          "transition_duration": 2.0
+        },
+        {
+          "start": 1202.0,
+          "end": 2100.0,
+          "type": "keep",
+          "reason": "Keep entire Step 2 segment."
+        },
+        {
+          "start": 2100.0,
+          "end": 2102.0,
+          "type": "transition",
+          "reason": "Transition to Step 3.",
+          "transition_type": "crossfade",
+          "transition_duration": 2.0
+        },
+        {
+          "start": 2102.0,
+          "end": 3000.0,
+          "type": "keep",
+          "reason": "Keep entire Step 3 segment."
+        },
+        {
+          "start": 3000.0,
+          "end": 3002.0,
+          "type": "transition",
+          "reason": "Transition to key tips section.",
+          "transition_type": "crossfade",
+          "transition_duration": 2.0
+        },
+        {
+          "start": 3002.0,
+          "end": 3300.0,
+          "type": "keep",
+          "reason": "Keep crucial tips section (climax)."
+        },
+        {
+          "start": 3300.0,
+          "end": 3302.0,
+          "type": "transition",
+          "reason": "Transition to outro.",
+          "transition_type": "crossfade",
+          "transition_duration": 2.0
+        },
+        {
+          "start": 3302.0,
+          "end": 3605.64,
+          "type": "keep",
+          "reason": "Retain final result and conclusion."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 60.0,
+        "climax_timestamp": 3150.0,
+        "resolution_timestamp": 3500.0
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 300.0,
+          "importance": "high",
+          "reason": "Introduction and preview of the final result to hook the viewer.",
+          "story_role": "hook"
+        },
+        {
+          "start": 300.0,
+          "end": 1200.0,
+          "importance": "high",
+          "reason": "Detailed walkthrough of Step 1, establishing the foundation.",
+          "story_role": "build"
+        },
+        {
+          "start": 1200.0,
+          "end": 2100.0,
+          "importance": "high",
+          "reason": "Detailed walkthrough of Step 2, continuing the process.",
+          "story_role": "build"
+        },
+        {
+          "start": 2100.0,
+          "end": 3000.0,
+          "importance": "high",
+          "reason": "Detailed walkthrough of Step 3, nearing completion.",
+          "story_role": "build"
+        },
+        {
+          "start": 3000.0,
+          "end": 3300.0,
+          "importance": "high",
+          "reason": "Crucial tips and key techniques that resolve common issues, serving as the instructional climax.",
+          "story_role": "climax"
+        },
+        {
+          "start": 3300.0,
+          "end": 3605.64,
+          "importance": "medium",
+          "reason": "Review of the final result and concluding remarks.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "segment_count": 11,
+          "total_duration": 3605.64,
+          "coverage_percentage": 99.99997232114899,
+          "average_segment_length": 327.7854545454545,
+          "has_transitions": true,
+          "valid_timestamps": true,
+          "story_alignment": "unknown"
+        },
+        "issues": [],
+        "score": 100
+      },
+      "expected_behavior": "Should preserve all important steps, maintain logical flow, keep detailed explanations",
+      "timestamp": "2025-11-23T02:08:14.323019"
+    },
+    {
+      "scenario": "Edge Case - Minimal Story Prompt",
+      "video_id": "3cbd5a10-7d57-4304-9d03-6b532fe5fe01",
+      "status": "success",
+      "elapsed_seconds": 13.904117,
+      "story_prompt": {
+        "tone": "educational"
+      },
+      "summary": {
+        "video_summary": "Test video"
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 3605.64,
+          "type": "keep",
+          "reason": "Retaining entire video duration as no content data (frames or transcript) was provided to justify cuts or identify story beats."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0.0,
+        "climax_timestamp": 1800.0,
+        "resolution_timestamp": 3605.64
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 3605.64,
+          "importance": "medium",
+          "reason": "Unable to identify specific key moments due to lack of visual or speech transcript data. Treating entire duration as a single contiguous block.",
+          "story_role": "build"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "segment_count": 1,
+          "total_duration": 3605.64,
+          "coverage_percentage": 99.99997232114899,
+          "average_segment_length": 3605.64,
+          "has_transitions": false,
+          "valid_timestamps": false,
+          "story_alignment": "unknown"
+        },
+        "issues": [
+          "Validation error: Segment 0: Duration 3605.64 suspiciously long"
+        ],
+        "score": 75.0
+      },
+      "expected_behavior": "Should handle gracefully with minimal input, use defaults",
+      "timestamp": "2025-11-23T02:08:28.602266"
+    },
+    {
+      "scenario": "Edge Case - Empty Summary",
+      "video_id": "3cbd5a10-7d57-4304-9d03-6b532fe5fe01",
+      "status": "success",
+      "elapsed_seconds": 11.357562,
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "educational",
+        "desired_length": "medium"
+      },
+      "summary": {},
+      "edl": [],
+      "story_analysis": {
+        "hook_timestamp": 0,
+        "climax_timestamp": 0,
+        "resolution_timestamp": 0
+      },
+      "key_moments": [],
+      "evaluation": {
+        "metrics": {
+          "segment_count": 0,
+          "total_duration": 0,
+          "coverage_percentage": 0.0,
+          "average_segment_length": 0.0,
+          "has_transitions": false,
+          "valid_timestamps": false,
+          "story_alignment": "unknown"
+        },
+        "issues": [
+          "Validation error: EDL cannot be empty",
+          "CRITICAL: EDL is empty"
+        ],
+        "score": 0
+      },
+      "expected_behavior": "Should analyze frames and transcript directly, not rely on summary",
+      "timestamp": "2025-11-23T02:08:40.333704"
+    },
+    {
+      "scenario": "Edge Case - Contradictory Preferences",
+      "video_id": "3cbd5a10-7d57-4304-9d03-6b532fe5fe01",
+      "status": "success",
+      "elapsed_seconds": 10.671598,
+      "story_prompt": {
+        "target_audience": "students",
+        "tone": "educational",
+        "desired_length": "short",
+        "style_preferences": {
+          "pacing": "slow"
+        }
+      },
+      "summary": {
+        "video_summary": "Educational content"
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 3605.64,
+          "type": "skip",
+          "reason": "Unable to create an edit plan due to missing visual and speech content data. The entire video is skipped as no suitable segments could be identified against the requirements."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0,
+        "climax_timestamp": 0,
+        "resolution_timestamp": 0
+      },
+      "key_moments": [],
+      "evaluation": {
+        "metrics": {
+          "segment_count": 1,
+          "total_duration": 3605.64,
+          "coverage_percentage": 99.99997232114899,
+          "average_segment_length": 3605.64,
+          "has_transitions": false,
+          "valid_timestamps": false,
+          "story_alignment": "unknown"
+        },
+        "issues": [
+          "Validation error: Segment 0: Duration 3605.64 suspiciously long",
+          "Validation error: Warning: EDL only covers 0.0% of video",
+          "Desired 'short' edit but duration is >30% of original"
+        ],
+        "score": 65.0
+      },
+      "expected_behavior": "Should prioritize desired_length over pacing, or find balance",
+      "timestamp": "2025-11-23T02:08:51.478125"
+    },
+    {
+      "scenario": "Edge Case - Very Long Video (30+ min)",
+      "video_id": "3cbd5a10-7d57-4304-9d03-6b532fe5fe01",
+      "status": "success",
+      "elapsed_seconds": 13.112761,
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "educational",
+        "desired_length": "short",
+        "key_message": "Extract only the most important moments"
+      },
+      "summary": {
+        "video_summary": "Long-form educational content"
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 3605.64,
+          "type": "skip",
+          "reason": "Cannot extract important moments without content analysis data."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 0.0,
+        "climax_timestamp": 1802.82,
+        "resolution_timestamp": 3605.64
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 3605.64,
+          "importance": "low",
+          "reason": "Unable to identify key educational moments as no transcript or visual data was provided.",
+          "story_role": "build"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "segment_count": 1,
+          "total_duration": 3605.64,
+          "coverage_percentage": 99.99997232114899,
+          "average_segment_length": 3605.64,
+          "has_transitions": false,
+          "valid_timestamps": false,
+          "story_alignment": "unknown"
+        },
+        "issues": [
+          "Validation error: Segment 0: Duration 3605.64 suspiciously long",
+          "Validation error: Warning: EDL only covers 0.0% of video",
+          "Desired 'short' edit but duration is >30% of original"
+        ],
+        "score": 65.0
+      },
+      "expected_behavior": "Should aggressively cut to create short edit from long video",
+      "timestamp": "2025-11-23T02:09:04.979812"
+    },
+    {
+      "scenario": "Edge Case - Very Short Video (<2 min)",
+      "video_id": "3cbd5a10-7d57-4304-9d03-6b532fe5fe01",
+      "status": "success",
+      "elapsed_seconds": 19.08108,
+      "story_prompt": {
+        "target_audience": "general",
+        "tone": "casual",
+        "desired_length": "medium"
+      },
+      "summary": {
+        "video_summary": "Short video content"
+      },
+      "edl": [
+        {
+          "start": 0.0,
+          "end": 60.0,
+          "type": "keep",
+          "reason": "Keep potential intro."
+        },
+        {
+          "start": 60.0,
+          "end": 1750.0,
+          "type": "keep",
+          "reason": "Keep main body placeholder."
+        },
+        {
+          "start": 1750.0,
+          "end": 1850.0,
+          "type": "keep",
+          "reason": "Keep climax placeholder."
+        },
+        {
+          "start": 1850.0,
+          "end": 3500.0,
+          "type": "skip",
+          "reason": "Skipping large section of undefined content to maintain medium length requirement."
+        },
+        {
+          "start": 3500.0,
+          "end": 3605.64,
+          "type": "keep",
+          "reason": "Keep potential outro."
+        }
+      ],
+      "story_analysis": {
+        "hook_timestamp": 15.0,
+        "climax_timestamp": 1800.0,
+        "resolution_timestamp": 3550.0
+      },
+      "key_moments": [
+        {
+          "start": 0.0,
+          "end": 60.0,
+          "importance": "high",
+          "reason": "Placeholder segment for potential introduction/hook due to missing content data.",
+          "story_role": "hook"
+        },
+        {
+          "start": 60.0,
+          "end": 1750.0,
+          "importance": "medium",
+          "reason": "Placeholder segment representing the main body of content.",
+          "story_role": "build"
+        },
+        {
+          "start": 1750.0,
+          "end": 1850.0,
+          "importance": "high",
+          "reason": "Placeholder segment for the middle/climax point of the video duration.",
+          "story_role": "climax"
+        },
+        {
+          "start": 3500.0,
+          "end": 3605.64,
+          "importance": "medium",
+          "reason": "Placeholder segment for the conclusion/resolution.",
+          "story_role": "resolution"
+        }
+      ],
+      "evaluation": {
+        "metrics": {
+          "segment_count": 5,
+          "total_duration": 3605.64,
+          "coverage_percentage": 99.99997232114899,
+          "average_segment_length": 721.1279999999999,
+          "has_transitions": false,
+          "valid_timestamps": true,
+          "story_alignment": "unknown"
+        },
+        "issues": [],
+        "score": 100
+      },
+      "expected_behavior": "Should preserve most content, minimal cutting",
+      "timestamp": "2025-11-23T02:09:24.499073"
+    }
+  ]
+}
