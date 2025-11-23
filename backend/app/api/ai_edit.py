@@ -112,7 +112,7 @@ class GenerateAIEditRequest(BaseModel):
     callback_url: Optional[str] = None
     callback_data: Optional[Dict[str, Any]] = None
     video_ids: Optional[List[str]] = None  # Optional: Message IDs or other identifiers
-    auto_apply: Optional[bool] = False  # If True, automatically apply edit after generation
+    auto_apply: Optional[bool] = True  # If True, automatically apply edit after generation (DEFAULT: True - pipeline runs automatically)
     aspect_ratios: Optional[List[str]] = ["16:9"]  # Aspect ratios for rendering (if auto_apply=True)
     
     # Legacy fields for backward compatibility
@@ -242,7 +242,10 @@ async def generate_ai_edit(
                 for frame_data in result.frame_level_data:
                     frames.append({
                         "frame_timestamp": frame_data.frame_timestamp,
-                        "description": frame_data.description
+                        "timestamp_seconds": frame_data.frame_timestamp,  # Add normalized field
+                        "description": frame_data.description,
+                        "llm_response": frame_data.description,  # Add normalized field
+                        "status": "completed"  # Required by data compressor filter
                     })
             
             # Transform scene_level_data.scenes to scenes format
@@ -346,7 +349,16 @@ async def generate_ai_edit(
         # Collect frames
         frames = vid_data.get("frames", [])
         for frame in frames:
-            frame["video_id"] = vid_id  # Tag with source video
+            # Ensure frame has required fields for data compressor
+            if "status" not in frame:
+                frame["status"] = "completed"
+            if "timestamp_seconds" not in frame and "frame_timestamp" in frame:
+                frame["timestamp_seconds"] = frame["frame_timestamp"]
+            if "llm_response" not in frame and "description" in frame:
+                frame["llm_response"] = frame["description"]
+            # Tag with source video for multi-video edits
+            frame["source_video_id"] = vid_id
+            frame["video_id"] = vid_id  # Also keep video_id for backward compatibility
             all_frames.append(frame)
         
         # Collect scenes
@@ -371,6 +383,12 @@ async def generate_ai_edit(
             "has_transcription": transcription is not None
         })
     
+    # Sort frames by timestamp to preserve order (critical for proper sequencing)
+    all_frames.sort(key=lambda f: (f.get("source_video_id", ""), f.get("timestamp_seconds") or f.get("frame_timestamp", 0)))
+    
+    # Sort scenes by start time to preserve order (critical for proper sequencing)
+    all_scenes.sort(key=lambda s: (s.get("source_video_id", ""), s.get("start", 0)))
+    
     # Extract transcript segments from provided transcriptions
     data_loader = DataLoader(None)  # No DB needed
     transcript_segments = []
@@ -390,6 +408,12 @@ async def generate_ai_edit(
         "video_duration": total_duration,
         "videos": videos_metadata
     }
+    
+    # Log frame counts for debugging
+    logger.info(f"Prepared data for pipeline: {len(all_frames)} frames, {len(all_scenes)} scenes, {len(transcript_segments)} transcript segments")
+    if len(all_frames) > 0:
+        sample_frame = all_frames[0]
+        logger.info(f"Sample frame keys: {list(sample_frame.keys())}, has description: {bool(sample_frame.get('description'))}, has llm_response: {bool(sample_frame.get('llm_response'))}, has status: {bool(sample_frame.get('status'))}")
     
     # Prepare summary (handle new format vs legacy format)
     if request.summary:
@@ -411,13 +435,13 @@ async def generate_ai_edit(
         summary = {
             "success": True,
             "message_ids": [],
-            "video_summary": "",
-            "key_moments": [],
-            "content_type": "presentation",
-            "main_topics": [],
+        "video_summary": "",
+        "key_moments": [],
+        "content_type": "presentation",
+        "main_topics": [],
             "speaker_style": "casual",
             "results_count": 0
-        }
+    }
     
     # Prepare story prompt (handle missing/partial data)
     story_prompt = request.story_prompt.dict() if request.story_prompt else {}
@@ -493,18 +517,18 @@ async def generate_ai_edit(
             transcript_segments=transcript_segments,
             videos_metadata=videos_metadata if is_multi_video else None
         )
-        
+    
         logger.info(f"AI edit job {job_id} queued ({'multi-video' if is_multi_video else 'single-video'}), task_id: {task.id}")
-        
-        return {
+    
+    return {
             "job_id": job_id,
             "status": "queued",
-            "task_id": task.id,
+        "task_id": task.id,
             "message": "AI edit generation started (no database dependencies)",
             "video_ids": video_ids,
             "is_multi_video": is_multi_video,
             "auto_apply": False
-        }
+    }
 
 
 @router.get("/{video_id}/ai-edit/plan/{job_id}")
@@ -623,23 +647,23 @@ async def apply_ai_edit(
     else:
         # Single video: use existing logic
         media = db.query(Media).filter(Media.video_id == video_id).first()
-        if not media:
-            raise HTTPException(status_code=404, detail="Media not found")
-        
-        transcript_segments = None
-        if edit_options.get("captions"):
-            transcript = db.query(Transcript).filter(Transcript.video_id == video_id).first()
-            if transcript:
-                transcript_segments = transcript.segments
-        
-        cached_media_data = {
-            "video_url": media.video_url,
-            "original_path": media.original_path,
-            "duration_seconds": media.duration_seconds or 0.0,
-            "has_audio": getattr(media, 'has_audio', True) if hasattr(media, 'has_audio') else True,
-            "transcript_segments": transcript_segments
-        }
-        multi_video_data = None
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
+    
+    transcript_segments = None
+    if edit_options.get("captions"):
+        transcript = db.query(Transcript).filter(Transcript.video_id == video_id).first()
+        if transcript:
+            transcript_segments = transcript.segments
+    
+    cached_media_data = {
+        "video_url": media.video_url,
+        "original_path": media.original_path,
+        "duration_seconds": media.duration_seconds or 0.0,
+        "has_audio": getattr(media, 'has_audio', True) if hasattr(media, 'has_audio') else True,
+        "transcript_segments": transcript_segments
+    }
+    multi_video_data = None
     
     # Create EditJob record (will be processed by Celery)
     edit_job = EditJob(

@@ -7,7 +7,9 @@ from app.models.ai_edit_job import AIEditJob, AIEditJobStatus
 from app.services.video_processor import VideoProcessor
 from app.services.storage import StorageService
 from datetime import datetime
+from typing import List, Optional, Dict, Any
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -322,14 +324,47 @@ def apply_ai_edit_task(self, edit_job_id: str):
         edit_options = edit_job.edit_options or {}
         ai_edl = edit_options.pop("_ai_edl", [])
         ai_edit_job_id = edit_options.pop("_ai_edit_job_id", None)
-        cached_media_data = edit_options.pop("_media_data", None)  # Cached to avoid DB query
+        cached_media_data = edit_options.pop("_media_data", None)  # Cached for single video
+        multi_video_data = edit_options.pop("_multi_video_data", None)  # Cached for multi-video
         
         if not ai_edl:
             raise ValueError("No EDL found in edit_options")
         
-        # Download and cache video file if it's a URL (S3 or HTTP)
+        # Determine if this is a multi-video edit
+        is_multi_video = multi_video_data is not None and len(multi_video_data) > 1
+        
+        # Download and cache video file(s) if they're URLs (S3 or HTTP)
         # This avoids network issues during rendering and database connection timeouts
-        if cached_media_data:
+        if is_multi_video:
+            # Download and cache all videos for multi-video edit
+            for vid_id, vid_data in multi_video_data.items():
+                video_url = vid_data.get("video_url")
+                original_path = vid_data.get("original_path")
+                
+                cached_video_path = None
+                if video_url and (video_url.startswith('http://') or video_url.startswith('https://')):
+                    logger.info(f"Downloading video {vid_id} from URL for caching: {video_url[:80]}...")
+                    try:
+                        cached_video_path = StorageService.download_video_from_url(
+                            video_url, 
+                            vid_id
+                        )
+                        vid_data["cached_video_path"] = cached_video_path
+                        logger.info(f"Video {vid_id} cached locally: {cached_video_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to download video {vid_id} from URL: {e}")
+                elif original_path and (original_path.startswith('http://') or original_path.startswith('https://')):
+                    logger.info(f"Downloading video {vid_id} from original_path URL: {original_path[:80]}...")
+                    try:
+                        cached_video_path = StorageService.download_video_from_url(
+                            original_path, 
+                            vid_id
+                        )
+                        vid_data["cached_video_path"] = cached_video_path
+                        logger.info(f"Video {vid_id} cached locally: {cached_video_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to download video {vid_id} from original_path URL: {e}")
+        elif cached_media_data:
             video_url = cached_media_data.get("video_url")
             original_path = cached_media_data.get("original_path")
             
@@ -370,7 +405,8 @@ def apply_ai_edit_task(self, edit_job_id: str):
             video_id=edit_job.video_id,
             edl=ai_edl,
             edit_options=edit_options,
-            media_data=cached_media_data  # Pass cached data to avoid DB query
+            media_data=cached_media_data,  # Pass cached data for single video
+            multi_video_data=multi_video_data  # Pass cached data for multi-video
         )
         
         # Update EditJob
@@ -411,6 +447,373 @@ def apply_ai_edit_task(self, edit_job_id: str):
         raise self.retry(exc=e, countdown=60)
     finally:
         db.close()
+
+
+@celery_app.task(bind=True, max_retries=3)
+def generate_ai_edit_task_standalone(
+    self,
+    job_id: str,
+    videos_data: List[Dict[str, Any]],
+    summary: Dict[str, Any],
+    story_prompt: Dict[str, Any],
+    data: Dict[str, Any],
+    transcript_segments: List[Dict[str, Any]],
+    videos_metadata: Optional[List[Dict]] = None
+):
+    """
+    Generate AI-driven storytelling edit plan (standalone, no database).
+    
+    All data is provided in the function arguments - no database queries.
+    """
+    from app.services.ai.storytelling_agent import StorytellingAgent
+    import asyncio
+    
+    try:
+        logger.info(f"Starting AI edit job {job_id} (standalone mode, no database)")
+        
+        # Determine if this is a multi-video edit
+        is_multi_video = len(videos_data) > 1
+        video_ids = [v["video_id"] for v in videos_data]
+        
+        # Initialize agent
+        agent = StorytellingAgent()
+        
+        # Generate edit plan (async call in sync context)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            plan = loop.run_until_complete(
+                agent.generate_edit_plan(
+                    frames=data.get("frames", []),
+                    scenes=data.get("scenes", []),
+                    transcript_segments=transcript_segments,
+                    summary=summary or {},
+                    story_prompt=story_prompt,
+                    video_duration=data.get("video_duration", 0.0),
+                    video_ids=video_ids if is_multi_video else None,
+                    videos_metadata=videos_metadata
+                )
+            )
+        finally:
+            # Cleanup async resources
+            try:
+                # Close agent properly
+                if hasattr(agent, 'llm_client') and agent.llm_client:
+                    loop.run_until_complete(agent.llm_client.close())
+            except Exception as e:
+                logger.warning(f"Error closing LLM client: {e}")
+            finally:
+                loop.close()
+        
+        logger.info(f"AI edit job {job_id} completed successfully (standalone mode).")
+        return plan
+        
+    except Exception as e:
+        logger.error(f"AI edit job {job_id} failed: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=60)
+
+
+@celery_app.task(bind=True, max_retries=3)
+def generate_and_apply_ai_edit_pipeline(
+    self,
+    job_id: str,
+    videos_data: List[Dict[str, Any]],
+    summary: Dict[str, Any],
+    story_prompt: Dict[str, Any],
+    data: Dict[str, Any],
+    transcript_segments: List[Dict[str, Any]],
+    videos_metadata: Optional[List[Dict]] = None,
+    aspect_ratios: List[str] = ["16:9"],
+    primary_video_id: str = None,
+    callback_url: Optional[str] = None,
+    callback_data: Optional[Dict] = None
+):
+    """
+    Complete pipeline: Generate AI edit plan -> Apply edit -> Save to processed_dir -> Upload to S3.
+    
+    Self-sufficient: All data provided in arguments, no database queries.
+    
+    Args:
+        job_id: Unique job identifier
+        videos_data: List of video data dictionaries
+        summary: Summary data
+        story_prompt: Story prompt data
+        data: Pre-processed data (frames, scenes, etc.)
+        transcript_segments: Transcript segments
+        videos_metadata: Optional video metadata for multi-video edits
+        aspect_ratios: List of aspect ratios to render
+        primary_video_id: Primary video ID for output directory
+        callback_url: Optional callback URL
+        callback_data: Optional callback data
+    """
+    from app.services.ai.storytelling_agent import StorytellingAgent
+    from app.services.ai.edl_converter import EDLConverter
+    from app.services.editor import EditorService
+    from app.services.storage import StorageService
+    import asyncio
+    from pathlib import Path
+    import shutil
+    
+    try:
+        logger.info(f"Starting AI edit pipeline {job_id} (generate + apply + save)")
+        
+        # Step 1: Generate AI edit plan
+        logger.info(f"Pipeline {job_id}: Step 1 - Generating AI edit plan")
+        is_multi_video = len(videos_data) > 1
+        video_ids = [v["video_id"] for v in videos_data]
+        
+        # Initialize agent
+        agent = StorytellingAgent()
+        
+        # Generate edit plan (async call in sync context)
+        # CRITICAL: loop.run_until_complete() ensures Step 1 (generate) completes BEFORE Step 2 (apply)
+        # This is sequential execution - no parallel processing possible
+        logger.info(f"Pipeline {job_id}: Starting Step 1 - Generate (will wait for completion before Step 2)")
+        logger.info(f"Pipeline {job_id}: Data received - {len(data.get('frames', []))} frames, {len(data.get('scenes', []))} scenes")
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            plan = loop.run_until_complete(
+                agent.generate_edit_plan(
+                    frames=data.get("frames", []),
+                    scenes=data.get("scenes", []),
+                    transcript_segments=transcript_segments,
+                    summary=summary or {},
+                    story_prompt=story_prompt,
+                    video_duration=data.get("video_duration", 0.0),
+                    video_ids=video_ids if is_multi_video else None,
+                    videos_metadata=videos_metadata
+                )
+            )
+        finally:
+            try:
+                if hasattr(agent, 'llm_client') and agent.llm_client:
+                    loop.run_until_complete(agent.llm_client.close())
+            except Exception as e:
+                logger.warning(f"Error closing LLM client: {e}")
+            finally:
+                loop.close()
+        
+        logger.info(f"Pipeline {job_id}: Step 1 completed - Edit plan generated")
+        
+        # CRITICAL: Step 1 is now complete. Only proceed to Step 2 after plan is fully generated.
+        # This ensures synchronous execution - apply cannot start before generate completes.
+        
+        # Step 2: Convert EDL and prepare for rendering
+        logger.info(f"Pipeline {job_id}: Step 2 - Converting EDL and preparing for rendering (Step 1 completed, proceeding sequentially)")
+        converter = EDLConverter()
+        editor_edl = converter.convert_llm_edl_to_editor_format(
+            plan.get("edl", [])
+        )
+        
+        if not editor_edl or len(editor_edl) == 0:
+            raise ValueError("No valid segments in edit plan. EDL is empty after conversion.")
+        
+        # Create edit options
+        edit_options = converter.create_edit_options_from_plan(plan)
+        edit_options["aspect_ratios"] = aspect_ratios
+        
+        # Step 3: Download and cache video files
+        logger.info(f"Pipeline {job_id}: Step 3 - Downloading and caching video files")
+        multi_video_data = {}
+        cached_media_data = None
+        
+        if is_multi_video:
+            # Multi-video: download all videos
+            for vid_data in videos_data:
+                vid_id = vid_data["video_id"]
+                video_url = vid_data.get("video_url")
+                
+                if video_url and (video_url.startswith('http://') or video_url.startswith('https://')):
+                    logger.info(f"Downloading video {vid_id} from URL: {video_url[:80]}...")
+                    try:
+                        cached_path = StorageService.download_video_from_url(video_url, vid_id)
+                        multi_video_data[vid_id] = {
+                            "video_url": video_url,
+                            "cached_video_path": cached_path,
+                            "duration_seconds": vid_data.get("duration_seconds", 0.0),
+                            "has_audio": True
+                        }
+                        logger.info(f"Video {vid_id} cached: {cached_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to download video {vid_id}, using URL directly: {e}")
+                        multi_video_data[vid_id] = {
+                            "video_url": video_url,
+                            "duration_seconds": vid_data.get("duration_seconds", 0.0),
+                            "has_audio": True
+                        }
+                else:
+                    multi_video_data[vid_id] = {
+                        "video_url": video_url,
+                        "duration_seconds": vid_data.get("duration_seconds", 0.0),
+                        "has_audio": True
+                    }
+        else:
+            # Single video
+            vid_data = videos_data[0]
+            video_url = vid_data.get("video_url")
+            vid_id = vid_data["video_id"]
+            
+            if video_url and (video_url.startswith('http://') or video_url.startswith('https://')):
+                logger.info(f"Downloading video from URL: {video_url[:80]}...")
+                try:
+                    cached_path = StorageService.download_video_from_url(video_url, vid_id)
+                    cached_media_data = {
+                        "video_url": video_url,
+                        "cached_video_path": cached_path,
+                        "duration_seconds": vid_data.get("duration_seconds", 0.0),
+                        "has_audio": True
+                    }
+                    logger.info(f"Video cached: {cached_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to download video, using URL directly: {e}")
+                    cached_media_data = {
+                        "video_url": video_url,
+                        "duration_seconds": vid_data.get("duration_seconds", 0.0),
+                        "has_audio": True
+                    }
+            else:
+                cached_media_data = {
+                    "video_url": video_url,
+                    "duration_seconds": vid_data.get("duration_seconds", 0.0),
+                    "has_audio": True
+                }
+        
+        # Step 4: Render videos
+        logger.info(f"Pipeline {job_id}: Step 4 - Rendering videos for aspect ratios: {aspect_ratios}")
+        editor = EditorService()
+        # Use job_id as output_video_id to ensure unique filenames per job (avoid file collisions)
+        output_video_id = job_id  # Use job_id instead of primary_video_id to avoid reusing old files
+        
+        result = editor.render_from_edl(
+            video_id=output_video_id,
+            edl=editor_edl,
+            edit_options=edit_options,
+            media_data=cached_media_data,  # For single video
+            multi_video_data=multi_video_data if is_multi_video else None  # For multi-video
+        )
+        
+        output_paths = result.get("output_paths", {})
+        logger.info(f"Pipeline {job_id}: Step 4 completed - Videos rendered: {list(output_paths.keys())}")
+        
+        # Step 5: Ensure files are saved to processed_dir and optionally upload to S3
+        logger.info(f"Pipeline {job_id}: Step 5 - Saving to processed_dir and uploading to S3")
+        local_paths = {}
+        uploaded_urls = {}
+        
+        for aspect_ratio, output_path in output_paths.items():
+            if isinstance(output_path, str):
+                # Handle web-style paths like "/storage/processed/..." 
+                # Convert to actual file system path
+                if output_path.startswith("/storage/"):
+                    # Convert /storage/processed/video_id/file.mp4 to actual file system path
+                    from app.config import get_settings
+                    settings = get_settings()
+                    relative_path = output_path.replace("/storage/", "")
+                    output_path_resolved = settings.BASE_STORAGE_PATH / relative_path
+                else:
+                    # Resolve relative paths to absolute paths
+                    output_path_resolved = Path(output_path).resolve()
+                
+                if output_path_resolved.exists():
+                    # Ensure file is in processed_dir
+                    processed_dir = StorageService.get_processed_directory(output_video_id)
+                    expected_path = processed_dir / f"edited_{aspect_ratio.replace(':', '_')}.mp4"
+                    
+                    # If file is not in processed_dir, copy it there
+                    if output_path_resolved != expected_path.resolve():
+                        if not expected_path.exists():
+                            shutil.copy2(str(output_path_resolved), expected_path)
+                            logger.info(f"Copied video to processed_dir: {expected_path}")
+                        local_path = str(expected_path)
+                    else:
+                        local_path = str(output_path_resolved)
+                    
+                    local_paths[aspect_ratio] = local_path
+                    logger.info(f"Video {aspect_ratio} saved to processed_dir: {local_path}")
+                    
+                    # Optionally upload to S3 (if callback_url is provided, we probably want S3)
+                    if callback_url:
+                        try:
+                            public_url = StorageService.upload_to_supabase_storage(
+                                file_path=local_path,
+                                bucket_name="videos",
+                                folder_path=f"ai-edits/{job_id}",
+                                filename=f"edited_{aspect_ratio.replace(':', '_')}.mp4"
+                            )
+                            if public_url:  # Only set if upload succeeded
+                                uploaded_urls[aspect_ratio] = public_url
+                                logger.info(f"Uploaded {aspect_ratio} video to S3: {public_url}")
+                            else:
+                                logger.warning(f"Skipped S3 upload for {aspect_ratio} (credentials not configured)")
+                        except Exception as e:
+                            logger.error(f"Failed to upload {aspect_ratio} video to S3: {e}", exc_info=True)
+                            # Continue even if upload fails
+                else:
+                    logger.warning(f"Output path does not exist: {output_path} (resolved: {output_path_resolved})")
+            else:
+                logger.warning(f"Output path is not a string for {aspect_ratio}: {type(output_path)}")
+        
+        # Step 6: Callback (if provided)
+        if callback_url:
+            logger.info(f"Pipeline {job_id}: Step 6 - Calling back: {callback_url}")
+            try:
+                # Get storage_url (prefer uploaded S3 URL, fallback to first local path if no upload)
+                storage_url = None
+                if uploaded_urls:
+                    # Use first uploaded URL (S3/Supabase)
+                    storage_url = list(uploaded_urls.values())[0]
+                elif local_paths:
+                    # Fallback: use first local path (though webhook probably needs a URL)
+                    storage_url = list(local_paths.values())[0]
+                    logger.warning(f"No S3 upload available, using local path for storage_url: {storage_url}")
+                
+                # Build callback payload: {storage_url, callback_data: {...}}
+                # Webhook expects callback_data to be nested, not spread at top level
+                callback_payload = {
+                    "storage_url": storage_url,
+                    "callback_data": callback_data or {}  # Nest callback_data as expected by webhook
+                }
+                
+                # Log the exact payload being sent (for debugging webhook API compatibility)
+                logger.info(f"Callback payload being sent to {callback_url}:")
+                logger.info(f"  storage_url: {storage_url}")
+                logger.info(f"  callback_data: {callback_data}")
+                logger.info(f"  Full payload: {json.dumps(callback_payload, indent=2)}")
+                
+                import httpx
+                with httpx.Client(timeout=30.0) as client:
+                    response = client.post(
+                        callback_url,
+                        json=callback_payload,
+                        headers={"Content-Type": "application/json"}
+                    )
+                    if response.status_code >= 400:
+                        # Log error response for debugging
+                        error_text = response.text[:1000] if response.text else "No error message"
+                        logger.error(f"Callback failed ({response.status_code}): {error_text}")
+                        logger.error(f"Request payload was: {json.dumps(callback_payload, indent=2)}")
+                    response.raise_for_status()
+                    logger.info(f"Callback successful. Response: {response.status_code}")
+            except Exception as e:
+                logger.error(f"Callback failed: {e}", exc_info=True)
+                # Don't fail the whole pipeline if callback fails
+        
+        logger.info(f"Pipeline {job_id} completed successfully")
+        return {
+            "job_id": job_id,
+            "status": "completed",
+            "local_paths": local_paths,
+            "uploaded_urls": uploaded_urls if uploaded_urls else None,
+            "plan": plan
+        }
+        
+    except Exception as e:
+        logger.error(f"Pipeline {job_id} failed: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=60)
 
 
 @celery_app.task(bind=True, max_retries=3)

@@ -119,6 +119,19 @@ You must output valid JSON matching the provided schema exactly."""
         desired_length_percentage = max(25, min(100, float(desired_length_percentage)))
         target_duration = video_duration * (desired_length_percentage / 100.0)
         
+        # Apply minimum duration rules:
+        # - If total video duration > 20 seconds, ensure target is at least 20 seconds
+        # - Otherwise, ensure target is at least 60% of video duration
+        if video_duration > 20:
+            target_duration = max(20.0, target_duration)  # Minimum 20 seconds for longer videos
+        else:
+            target_duration = max(target_duration, video_duration * 0.6)  # Minimum 60% for shorter videos
+        
+        # Recalculate percentage based on adjusted target (for display in prompt)
+        adjusted_percentage = (target_duration / video_duration) * 100.0
+        if adjusted_percentage != desired_length_percentage:
+            logger.info(f"Adjusted target duration: {video_duration:.1f}s × {desired_length_percentage}% = {video_duration * (desired_length_percentage / 100.0):.1f}s → {target_duration:.1f}s ({adjusted_percentage:.1f}%) to meet minimum length requirement")
+        
         # Format frames data
         frames_text = self._format_frames(compressed_data.get("frames", []), is_multi_video=is_multi_video)
         
@@ -185,21 +198,26 @@ Create a SHORT-FORM edit plan (≤40 seconds) optimized for Shorts/Reels:
    - Climax: Peak moment (60-80% through edit)
    - Resolution: Conclusion + CTA (last 3-5 seconds)
 
-3. PACING: Match desired_length_percentage (CRITICAL - this determines how much to cut)
-   - Target coverage: {desired_length_percentage}% of original video duration
-   - Final edit duration = {video_duration:.1f}s × {desired_length_percentage}% = {target_duration:.1f}s
+3. PACING: Match target duration (CRITICAL - this determines how much to cut)
+   - Target duration: {target_duration:.1f}s (minimum length requirement applied)
+   - Original video duration: {video_duration:.1f}s
    - You MUST create an EDL where total "keep" segments = approximately {target_duration:.1f}s (±5% tolerance)
+   - MINIMUM LENGTH RULES:
+     * If total video duration > 20s: Target must be at least 20 seconds
+     * If total video duration ≤ 20s: Target must be at least 60% of video duration
+     * Current target: {target_duration:.1f}s (meets minimum requirement)
    - Keep the most engaging moments, skip less important parts
    - For lower percentages (25-40%): Fast-paced, rapid cuts, high energy
    - For medium percentages (45-60%): Balanced pacing, preserve story flow
    - For higher percentages (70-100%): Preserve most content, minimal cutting
 
 4. EDL CREATION:
-   - CRITICAL: Calculate total "keep" duration to match {desired_length_percentage}% target
-     * Target duration: {target_duration:.1f}s (from {video_duration:.1f}s original)
+   - CRITICAL: Calculate total "keep" duration to match target duration
+     * Target duration: {target_duration:.1f}s (minimum length: 20s if video > 20s, or 60% if video ≤ 20s)
+     * Original video duration: {video_duration:.1f}s
      * Count only "keep" segments, ignore "skip" segments
      * Total keep segments MUST be approximately {target_duration:.1f}s (±5% tolerance = {target_duration * 0.95:.1f}s to {target_duration * 1.05:.1f}s)
-     * Example: {video_duration:.1f}s video, {desired_length_percentage}% target → keep segments should total {target_duration:.1f}s
+     * Example: {video_duration:.1f}s video → keep segments should total {target_duration:.1f}s
    - Include all story arc moments (hook, climax, resolution)
    - Prioritize 'good_moments' from scenes (if marked)
    - Include key_moments from summary (if provided)
@@ -211,65 +229,27 @@ Create a SHORT-FORM edit plan (≤40 seconds) optimized for Shorts/Reels:
         
         if is_multi_video:
             prompt += """
-   - FOR MULTI-VIDEO EDITS: Each EDL segment MUST include 'video_id' field indicating source video
-   - Mix and match the best moments from different videos to create a compelling narrative
-   - You can switch between videos to create dynamic, engaging content
-   - Ensure smooth transitions when switching between videos"""
+   - MULTI-VIDEO: Each segment MUST include 'video_id' field. Mix moments from all videos."""
         
-        prompt += """
+        prompt += f"""
    
-   EDL EXAMPLE ({video_duration:.1f}s video, target: {desired_length_percentage}% = {target_duration:.1f}s):
-   [
-     {{"start": 0.0, "end": 2.0, "type": "keep"}},  // Hook: 2s
-     {{"start": 2.0, "end": 10.0, "type": "skip"}}, // Skip: 8s
-     {{"start": 10.0, "end": 12.0, "type": "keep"}}, // Best moment: 2s
-     {{"start": 12.0, "end": 24.0, "type": "skip"}}, // Skip: 12s
-     {{"start": 24.0, "end": 26.0, "type": "keep"}}, // Climax: 2s
-     {{"start": 26.0, "end": 34.0, "type": "skip"}}, // Skip: 8s
-     {{"start": 34.0, "end": 36.5, "type": "keep"}}  // Resolution: 2.5s
-   ]
-   Total keep: 2 + 2 + 2 + 2.5 = 8.5s (22% coverage) ✅"""
+   EXAMPLE ({video_duration:.1f}s → {target_duration:.1f}s target):
+   [{{"start": 0.0, "end": 2.0, "type": "keep"}}, {{"start": 2.0, "end": 10.0, "type": "skip"}}, 
+    {{"start": 10.0, "end": 12.0, "type": "keep"}}, {{"start": 24.0, "end": 26.0, "type": "keep"}}]
+   Total keep: 2+2+2 = 6s ✅ (must match {target_duration:.1f}s ±5%)"""
         
         if is_multi_video:
             prompt += """
-   
-   EDL EXAMPLE FOR MULTI-VIDEO 'SHORT' EDIT (2 videos, total 60s, target: 15-70% = 9-42s):
-   [
-     {{"start": 0.0, "end": 2.0, "type": "keep", "video_id": "video1"}},  // Hook from video1: 2s
-     {{"start": 5.0, "end": 7.0, "type": "keep", "video_id": "video2"}},  // Best moment from video2: 2s
-     {{"start": 12.0, "end": 14.0, "type": "keep", "video_id": "video1"}}, // Climax from video1: 2s
-     {{"start": 8.0, "end": 10.0, "type": "keep", "video_id": "video2"}}  // Resolution from video2: 2s
-   ]
-   Total keep: 2 + 2 + 2 + 2 = 8s (13% coverage) ✅
-   Note: Each segment includes 'video_id' to indicate source video"""
-        
-        prompt += """
-   
-   WRONG EXAMPLE (DO NOT DO THIS):
-   [
-     {{"start": 0.0, "end": 38.5, "type": "keep"}}  // 100% coverage - WRONG for 'short'!
-   ]
-   This keeps 38.5s (100% coverage) - FAILED! For 'short', you must cut to 5.7-11.4s.
-   
-   VERIFICATION STEP:
-   Before finalizing your EDL, calculate:
-   1. Sum all "keep" segment durations: keep_total = sum(end - start for all "keep" segments)
-   2. Calculate coverage: coverage = (keep_total / {video_duration:.1f}) * 100
-   3. For 'short': coverage MUST be 15-30%
-   4. If coverage > 30%, you MUST add more "skip" segments or shorten "keep" segments
+   MULTI-VIDEO EXAMPLE: [{{"start": 0.0, "end": 2.0, "type": "keep", "video_id": "vid1"}}, 
+                          {{"start": 5.0, "end": 7.0, "type": "keep", "video_id": "vid2"}}]"""
 
-5. TRANSITIONS: Plan smooth flow
-   - Prefer consecutive segments (gaps <0.5s)
-   - If gaps >3s, consider if content should be included
-   - Maintain logical sequence (chronological unless intentional)
+        prompt += f"""
 
-CRITICAL CONSTRAINTS:
-- All timestamps must be within 0-{video_duration:.2f} seconds (no hallucination)
-- Final edit duration must be ≤40 seconds (hard limit)
-- Hook must start in first 2 seconds (critical for retention)
-- Story arc timestamps must be included in EDL segments
+CRITICAL: 
+- Timestamps within 0-{video_duration:.2f}s | Edit ≤40s | Hook in first 2s
+- Verify: sum(keep segments) = {target_duration:.1f}s (±5%)
 
-Output your response as JSON matching the provided schema."""
+Output JSON matching the provided schema."""
         
         return prompt
     

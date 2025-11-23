@@ -51,10 +51,15 @@ class DataCompressor:
         
         # Filter only completed frames with valid responses
         # Support both formats: llm_response (ours) or description (friend's)
+        # Filter: require description/llm_response, but status is optional (for API-provided data)
+        logger.info(f"Compressing frames: {len(frames)} total frames received")
         valid_frames = [
             f for f in frames 
-            if f.get("status") == "completed" and (f.get("llm_response") or f.get("description"))
+            if (f.get("llm_response") or f.get("description")) and 
+               (f.get("status") is None or f.get("status") == "completed")
         ]
+        
+        logger.info(f"After filtering: {len(valid_frames)} valid frames (with description/llm_response)")
         
         if len(valid_frames) <= self.max_frames:
             return valid_frames
@@ -89,22 +94,27 @@ class DataCompressor:
             selected.append(sorted_frames[-1])
         
         # Sample evenly across middle
-        if len(sorted_frames) > 2:
+        if len(sorted_frames) > 2 and target_count > 2:
             step = (len(sorted_frames) - 2) / (target_count - 2)
             for i in range(1, target_count - 1):
                 idx = int(1 + i * step)
                 if idx < len(sorted_frames) - 1:
                     selected.append(sorted_frames[idx])
         
-        # Remove duplicates and sort
-        seen = set()
+        logger.info(f"Temporal sampling: selected {len(selected)} frames from {len(sorted_frames)} frames (target: {target_count})")
+        
+        # Remove duplicates based on timestamp (more reliable than id/frame_number which may be missing)
+        seen_timestamps = set()
         unique_selected = []
         for frame in selected:
-            frame_id = frame.get("id") or frame.get("frame_number")
-            if frame_id not in seen:
-                seen.add(frame_id)
+            timestamp = frame.get("timestamp_seconds") or frame.get("frame_timestamp", 0)
+            # Use timestamp as unique identifier (round to 2 decimals to handle floating point issues)
+            timestamp_key = round(timestamp, 2)
+            if timestamp_key not in seen_timestamps:
+                seen_timestamps.add(timestamp_key)
                 unique_selected.append(frame)
         
+        # Sort by timestamp
         return sorted(
             unique_selected, 
             key=lambda x: x.get("timestamp_seconds") or x.get("frame_timestamp", 0)

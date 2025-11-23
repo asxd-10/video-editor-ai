@@ -57,6 +57,6 @@ transformers  # For using HuggingFace models
 # openai==1.6.1
 
 # Supabase Storage (optional - has HTTP fallback)
-# supabase==2.0.0  # Uncomment if you want to use supabase-py client
+supabase==2.0.0  # Use supabase-py client for reliable uploads
 
 # Note: ffmpeg is installed as a system package via nixPkgs

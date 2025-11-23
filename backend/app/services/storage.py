@@ -166,3 +166,133 @@ class StorageService:
         except Exception as e:
             logger.error(f"Failed to download video from URL: {e}")
             raise
+    
+    @staticmethod
+    def upload_to_supabase_storage(
+        file_path: str,
+        bucket_name: str,
+        folder_path: Optional[str] = None,
+        filename: Optional[str] = None
+    ) -> str:
+        """
+        Upload file to Supabase storage and return public URL.
+        
+        Uses separate Supabase credentials (SUPABASE_URL2, SUPABASE_KEY2) for storage operations
+        if available, otherwise falls back to primary credentials.
+        
+        Args:
+            file_path: Local path to file to upload
+            bucket_name: Supabase storage bucket name
+            folder_path: Optional folder path within bucket (e.g., "ai-edits/job_id")
+            filename: Optional filename. If None, uses basename of file_path
+            
+        Returns:
+            Public URL of uploaded file
+        """
+        import os
+        from pathlib import Path
+        
+        # Get Supabase credentials (prioritize "2" versions for storage)
+        supabase_url = os.getenv("SUPABASE_URL2") or os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY2") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY2") or os.getenv("SUPABASE_KEY")
+        
+        if not supabase_url or not supabase_key:
+            logger.warning("Supabase credentials not configured. Skipping upload. Set SUPABASE_URL2/SUPABASE_KEY2 or SUPABASE_URL/SUPABASE_KEY")
+            return None  # Return None instead of raising error - upload is optional
+        
+        # Determine file path in storage
+        if filename:
+            storage_path = filename
+        else:
+            storage_path = Path(file_path).name
+        
+        if folder_path:
+            # Normalize folder path (remove leading/trailing slashes)
+            folder_path = folder_path.strip("/")
+            storage_path = f"{folder_path}/{storage_path}"
+        
+        # Read file
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        # Try using supabase-py library first (if available)
+        try:
+            from supabase import create_client, Client
+            logger.info("Using supabase-py library for upload")
+            
+            supabase: Client = create_client(supabase_url, supabase_key)
+            
+            # Upload using supabase-py
+            with open(file_path_obj, "rb") as f:
+                file_data = f.read()
+            
+            response = supabase.storage.from_(bucket_name).upload(
+                path=storage_path,
+                file=file_data,
+                file_options={"content-type": "video/mp4", "upsert": "true"}
+            )
+            
+            # Get public URL
+            public_url = supabase.storage.from_(bucket_name).get_public_url(storage_path)
+            
+            logger.info(f"File uploaded successfully via supabase-py: {public_url}")
+            return public_url
+            
+        except ImportError:
+            logger.info("supabase-py not available, using HTTP requests")
+        except Exception as e:
+            logger.warning(f"supabase-py upload failed: {e}, falling back to HTTP requests")
+        
+        # Fallback: Use direct HTTP requests (original method)
+        with open(file_path_obj, "rb") as f:
+            file_data = f.read()
+        
+        # Supabase Storage API: POST /storage/v1/object/{bucket}/{path}
+        # URL encode the path segments but keep forward slashes
+        from urllib.parse import quote
+        
+        # Encode each path segment separately, then join with /
+        path_parts = storage_path.split('/')
+        encoded_parts = [quote(part, safe='') for part in path_parts]
+        encoded_storage_path = '/'.join(encoded_parts)
+        
+        upload_url = f"{supabase_url}/storage/v1/object/{bucket_name}/{encoded_storage_path}"
+        
+        headers = {
+            "Authorization": f"Bearer {supabase_key}",
+            "apikey": supabase_key,  # Supabase requires both Authorization and apikey
+            "Content-Type": "video/mp4",
+            "x-upsert": "true"  # Overwrite if exists
+        }
+        
+        logger.info(f"Uploading {file_path} to Supabase storage")
+        logger.info(f"URL: {upload_url}")
+        logger.info(f"File size: {len(file_data)} bytes, Bucket: {bucket_name}, Path: {storage_path} (encoded: {encoded_storage_path})")
+        
+        # Try POST (Supabase Storage API standard)
+        try:
+            response = requests.post(upload_url, data=file_data, headers=headers, timeout=600)
+            if response.status_code >= 400:
+                error_text = response.text[:1000] if response.text else "No error message"
+                logger.error(f"POST upload failed ({response.status_code}): {error_text}")
+                logger.error(f"Request URL: {upload_url}")
+                logger.error(f"Storage path: {storage_path}")
+                logger.error(f"Encoded path: {encoded_storage_path}")
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            # Log full error details for debugging
+            if e.response:
+                error_text = e.response.text[:1000] if e.response.text else "No error message"
+                logger.error(f"HTTP Error {e.response.status_code}: {error_text}")
+                logger.error(f"Request URL: {upload_url}")
+                logger.error(f"Storage path: {storage_path}")
+                logger.error(f"Bucket: {bucket_name}")
+                logger.error(f"Response headers: {dict(e.response.headers)}")
+            raise
+        
+        # Construct public URL
+        public_url = f"{supabase_url}/storage/v1/object/public/{bucket_name}/{storage_path}"
+        
+        logger.info(f"File uploaded successfully: {public_url}")
+        return public_url
