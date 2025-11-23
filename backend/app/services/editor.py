@@ -30,35 +30,81 @@ class EditorService:
         video_id: str,
         edl: List[Dict],
         edit_options: Dict = None,
-        media_data: Dict = None  # Cached media data to avoid DB query
+        media_data: Dict = None,  # Cached media data to avoid DB query (single video)
+        multi_video_data: Dict = None  # For multi-video: {video_id: {video_url, original_path, cached_video_path, ...}}
     ) -> Dict:
         """
         Render video directly from provided EDL (for AI edits).
+        Supports both single and multi-video edits.
         
         Args:
-            video_id: Video ID to edit
-            edl: Edit Decision List [{"start": float, "end": float, "type": "keep"}]
+            video_id: Primary video ID (for output directory)
+            edl: Edit Decision List [
+                {"start": float, "end": float, "type": "keep", "video_id": str (optional for multi-video)}
+            ]
             edit_options: {
                 captions: bool,
                 caption_style: str,  # "burn_in" or "srt"
                 aspect_ratios: List[str]  # ["9:16", "1:1", "16:9"]
             }
-            media_data: Optional cached media data {
+            media_data: Optional cached media data for single video {
                 video_url: str,
                 original_path: str,
                 duration_seconds: float,
                 has_audio: bool,
                 transcript_segments: List[Dict]  # Optional, for captions
             }
+            multi_video_data: Optional dict mapping video_id to media data for multi-video {
+                video_id1: {video_url, original_path, cached_video_path, duration_seconds, has_audio, transcript_segments},
+                video_id2: {...}
+            }
         
         Returns:
             Dict with output paths for each aspect ratio
         """
+        # Determine if this is a multi-video edit
+        is_multi_video = multi_video_data is not None and len(multi_video_data) > 1
+        
         # Use cached media_data if provided, otherwise query database
-        cached_video_path = None  # Initialize
+        cached_video_path = None  # Initialize (for single video)
+        video_paths_map = {}  # For multi-video: video_id -> cached_path
         db = None
         try:
-            if media_data:
+            if is_multi_video:
+                # Multi-video edit: use multi_video_data
+                video_paths_map = {}
+                total_duration = 0.0
+                has_audio = True
+                transcript_segments = []
+                
+                for vid_id, vid_data in multi_video_data.items():
+                    cached_path = vid_data.get("cached_video_path")
+                    if cached_path:
+                        video_paths_map[vid_id] = cached_path
+                    else:
+                        # Fallback to URL or original_path
+                        video_url = vid_data.get("video_url")
+                        original_path = vid_data.get("original_path")
+                        if video_url and (video_url.startswith('http://') or video_url.startswith('https://')):
+                            video_paths_map[vid_id] = video_url
+                        elif original_path:
+                            video_paths_map[vid_id] = original_path
+                    
+                    total_duration += vid_data.get("duration_seconds", 0.0)
+                    if not vid_data.get("has_audio", True):
+                        has_audio = False
+                    
+                    # Collect transcript segments
+                    segs = vid_data.get("transcript_segments")
+                    if segs:
+                        transcript_segments.extend(segs)
+                
+                video_duration = total_duration
+                # Use first video's data for single-video fallback logic
+                first_video_data = list(multi_video_data.values())[0]
+                video_url = first_video_data.get("video_url")
+                original_path = first_video_data.get("original_path")
+            elif media_data:
                 video_url = media_data.get("video_url")
                 original_path = media_data.get("original_path")
                 cached_video_path = media_data.get("cached_video_path")  # Locally cached file
@@ -84,15 +130,26 @@ class EditorService:
             if not edl or len(edl) == 0:
                 raise ValueError("EDL cannot be empty")
             
-            # Validate EDL segments are within video duration
+            # Validate EDL segments
             for segment in edl:
-                if segment.get("start", 0) < 0 or segment.get("end", 0) > video_duration:
-                    logger.warning(f"Segment {segment} is outside video duration ({video_duration}s)")
+                seg_video_id = segment.get("video_id") if is_multi_video else None
+                if is_multi_video and seg_video_id:
+                    # Validate segment is within its source video's duration
+                    vid_data = multi_video_data.get(seg_video_id, {})
+                    vid_duration = vid_data.get("duration_seconds", 0.0)
+                    if segment.get("start", 0) < 0 or segment.get("end", 0) > vid_duration:
+                        logger.warning(f"Segment {segment} is outside source video duration ({vid_duration}s)")
+                else:
+                    # Single video: validate against total duration
+                    if segment.get("start", 0) < 0 or segment.get("end", 0) > video_duration:
+                        logger.warning(f"Segment {segment} is outside video duration ({video_duration}s)")
+                
                 if segment.get("start", 0) >= segment.get("end", 0):
                     raise ValueError(f"Invalid segment: start >= end in {segment}")
             
             # Get transcript if captions are enabled
             transcript = None
+            transcript_map = {}  # video_id -> transcript_segments (for multi-video)
             if edit_options and edit_options.get("captions"):
                 if transcript_segments:
                     # Use cached transcript segments
@@ -102,7 +159,32 @@ class EditorService:
                         def __init__(self, segments, video_id):
                             self.segments = segments
                             self.video_id = video_id
-                    transcript = MockTranscript(transcript_segments, video_id)
+                    
+                    if is_multi_video:
+                        # For multi-video: build mapping of video_id -> transcript segments
+                        # First, try to get segments from multi_video_data (preferred)
+                        for vid_id, vid_data in multi_video_data.items():
+                            vid_segments = vid_data.get("transcript_segments", [])
+                            if vid_segments:
+                                transcript_map[vid_id] = vid_segments
+                                logger.info(f"Mapped {len(vid_segments)} transcript segments to video {vid_id}")
+                        
+                        # Fallback: build map from combined transcript_segments with source_video_id
+                        if not transcript_map and transcript_segments:
+                            # Build map from segments with source_video_id
+                            for seg in transcript_segments:
+                                source_id = seg.get("source_video_id")
+                                if source_id:
+                                    if source_id not in transcript_map:
+                                        transcript_map[source_id] = []
+                                    transcript_map[source_id].append(seg)
+                            logger.info(f"Built transcript_map from combined segments: {len(transcript_map)} videos")
+                        
+                        # Create combined transcript for fallback (will be rebuilt in _render_multi_video)
+                        transcript = MockTranscript(transcript_segments, video_id)
+                        logger.info(f"Transcript map has {len(transcript_map)} videos with transcripts")
+                    else:
+                        transcript = MockTranscript(transcript_segments, video_id)
                 elif db:
                     # Query database for transcript
                     transcript = db.query(Transcript).filter(
@@ -197,16 +279,40 @@ class EditorService:
             for aspect_ratio in edit_options.get("aspect_ratios", ["16:9"]):
                 # Use cached local file (if downloaded) or URL/local path
                 try:
-                    output_path = self._render_video(
-                        video_input_path,  # Can be cached local file, S3 URL, or local path
-                        edl,
-                        aspect_ratio,
-                        transcript if edit_options.get("captions") else None,
-                        edit_options,
-                        video_id,
-                        aspect_ratio,
-                        has_audio
-                    )
+                    if is_multi_video:
+                        # Multi-video rendering
+                        # Get videos_metadata for fallback video_id assignment
+                        videos_meta = None
+                        if multi_video_data:
+                            videos_meta = [
+                                {"video_id": vid_id, "duration": vid_data.get("duration_seconds", 0.0)}
+                                for vid_id, vid_data in multi_video_data.items()
+                            ]
+                        
+                        output_path = self._render_multi_video(
+                            video_paths_map,
+                            edl,
+                            aspect_ratio,
+                            transcript if edit_options.get("captions") else None,
+                            edit_options,
+                            video_id,
+                            aspect_ratio,
+                            has_audio,
+                            videos_metadata=videos_meta,
+                            transcript_map=transcript_map if edit_options.get("captions") else {}
+                        )
+                    else:
+                        # Single video rendering
+                        output_path = self._render_video(
+                            video_input_path,  # Can be cached local file, S3 URL, or local path
+                            edl,
+                            aspect_ratio,
+                            transcript if edit_options.get("captions") else None,
+                            edit_options,
+                            video_id,
+                            aspect_ratio,
+                            has_audio
+                        )
                     output_paths[aspect_ratio] = output_path
                 except Exception as e:
                     # If rendering fails and we have a fallback local path, try that
@@ -563,6 +669,11 @@ class EditorService:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / f"edited_{aspect_label.replace(':', '_')}.mp4"
         
+        # Check if output file already exists - if so, return it immediately
+        if output_path.exists():
+            logger.info(f"Output file already exists, skipping render: {output_path}")
+            return str(output_path)
+        
         try:
             # Build ffmpeg filter complex for concatenation
             # Strategy: Use concat demuxer (faster than filter_complex)
@@ -751,6 +862,369 @@ class EditorService:
             error_msg = e.stderr.decode() if e.stderr else str(e)
             logger.error(f"Rendering failed: {error_msg}")
             raise Exception(f"Rendering failed: {error_msg}")
+    
+    def _render_multi_video(
+        self,
+        video_paths_map: Dict[str, str],  # video_id -> video_path (cached or URL)
+        edl: List[Dict],
+        aspect_ratio: str,
+        transcript: Optional[Transcript],
+        edit_options: Dict,
+        output_video_id: str,  # For output directory
+        aspect_label: str,
+        has_audio: bool = True,
+        videos_metadata: Optional[List[Dict]] = None,  # For fallback video_id assignment
+        transcript_map: Optional[Dict[str, List[Dict]]] = None  # video_id -> transcript_segments
+    ) -> str:
+        """
+        Render final edited video from multiple source videos using ffmpeg.
+        
+        Args:
+            video_paths_map: Dict mapping video_id to video file path (cached local file or URL)
+            edl: Edit Decision List with video_id for each segment
+            aspect_ratio: Target aspect ratio
+            transcript: Optional transcript for captions
+            edit_options: Edit options dict
+            output_video_id: Video ID for output directory
+            aspect_label: Aspect ratio label for filename
+            has_audio: Whether to include audio
+            videos_metadata: Optional list of video metadata for fallback video_id assignment
+        
+        Returns:
+            Path to rendered video
+        """
+        output_dir = Path(settings.PROCESSED_DIR) / output_video_id
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"edited_{aspect_label.replace(':', '_')}.mp4"
+        
+        # Check if output file already exists - if so, return it immediately
+        if output_path.exists():
+            logger.info(f"Output file already exists, skipping render: {output_path}")
+            return str(output_path)
+        
+        # Build video duration map for fallback assignment
+        video_durations = {}
+        if videos_metadata:
+            for vid_meta in videos_metadata:
+                vid_id = vid_meta.get("video_id")
+                if vid_id:
+                    video_durations[vid_id] = vid_meta.get("duration", 0.0)
+        else:
+            # Fallback: assume equal distribution or use first video
+            video_ids = list(video_paths_map.keys())
+            if video_ids:
+                logger.warning("No videos_metadata provided, using first video for all segments")
+                default_video_id = video_ids[0]
+                for vid_id in video_ids:
+                    video_durations[vid_id] = 0.0  # Unknown duration
+        
+        try:
+            # Create temporary segment files
+            segment_files = []
+            temp_segments_dir = self.temp_dir / f"{output_video_id}_{aspect_label}"
+            temp_segments_dir.mkdir(parents=True, exist_ok=True)
+            
+            valid_segments = []
+            for i, segment in enumerate(edl):
+                # Calculate duration
+                duration = segment["end"] - segment["start"]
+                
+                # Skip segments that are too small (< 0.1 seconds) or invalid
+                if duration < 0.1:
+                    logger.warning(f"Skipping segment {i}: duration too small ({duration:.3f}s)")
+                    continue
+                
+                # Get video_id for this segment (required for multi-video)
+                seg_video_id = segment.get("video_id")
+                
+                # Fallback: Assign video_id based on timestamp if missing
+                if not seg_video_id and video_durations:
+                    seg_video_id, adjusted_start, adjusted_end = self._assign_video_id_by_timestamp(
+                        segment["start"], segment["end"], video_durations
+                    )
+                    if seg_video_id:
+                        segment["video_id"] = seg_video_id
+                        # Adjust timestamps to be relative to the video
+                        segment["start"] = adjusted_start
+                        segment["end"] = adjusted_end
+                        logger.info(f"Assigned video_id {seg_video_id} to segment {i} (adjusted timestamps: {adjusted_start:.2f}s-{adjusted_end:.2f}s)")
+                    else:
+                        # Use first video as fallback
+                        seg_video_id = list(video_paths_map.keys())[0]
+                        segment["video_id"] = seg_video_id
+                        logger.warning(f"Could not determine video_id for segment {i}, using first video: {seg_video_id}")
+                
+                if not seg_video_id:
+                    logger.warning(f"Segment {i} missing video_id and no fallback available, skipping")
+                    continue
+                
+                # Get video path for this segment
+                video_path = video_paths_map.get(seg_video_id)
+                if not video_path:
+                    logger.warning(f"Video path not found for video_id {seg_video_id}, skipping segment")
+                    continue
+                
+                valid_segments.append((i, segment, video_path))
+            
+            # Check if we have any valid segments
+            if not valid_segments:
+                raise ValueError("No valid segments in EDL (all segments were too small, invalid, or missing video_id)")
+            
+            # Extract segments from different videos
+            for seg_idx, segment, video_path in valid_segments:
+                seg_path = temp_segments_dir / f"seg_{seg_idx:04d}.mp4"
+                duration = segment["end"] - segment["start"]
+                
+                # Extract segment from the correct video
+                input_kwargs = {"ss": segment["start"]}
+                input_stream = ffmpeg.input(video_path, **input_kwargs)
+                output_stream = input_stream
+                
+                # Apply aspect ratio conversion if needed
+                if aspect_ratio != "16:9":
+                    output_stream = self._apply_aspect_ratio(output_stream, aspect_ratio)
+                
+                # Output segment
+                (
+                    ffmpeg
+                    .output(
+                        output_stream,
+                        str(seg_path),
+                        t=duration,
+                        vcodec='libx264',
+                        acodec='aac',
+                        preset='medium',
+                        crf=23
+                    )
+                    .overwrite_output()
+                    .run(capture_stdout=True, capture_stderr=True, quiet=True)
+                )
+                segment_files.append(seg_path)
+            
+            # Concatenate segments (same as single video)
+            concat_file = temp_segments_dir / "concat.txt"
+            with open(concat_file, 'w') as f:
+                for seg_file in segment_files:
+                    f.write(f"file '{seg_file.absolute()}'\n")
+            
+            # Check if segments have audio
+            has_audio_in_segments = False
+            if has_audio and segment_files:
+                try:
+                    probe = ffmpeg.probe(str(segment_files[0]))
+                    has_audio_in_segments = any(
+                        s.get('codec_type') == 'audio' 
+                        for s in probe.get('streams', [])
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not probe segment for audio: {e}")
+                    has_audio_in_segments = False
+            
+            # Concatenate and add captions
+            input_concat = ffmpeg.input(str(concat_file), format='concat', safe=0)
+            video_stream = input_concat['v']
+            
+            # Add captions to video if enabled
+            if edit_options.get("captions") and transcript:
+                # For multi-video: build combined transcript with adjusted timestamps
+                if transcript_map:
+                    combined_transcript_segments = self._build_combined_transcript(
+                        edl, transcript_map, valid_segments
+                    )
+                    # Create a mock transcript with combined segments
+                    from app.models.transcript import Transcript
+                    class MockTranscript:
+                        def __init__(self, segments, video_id):
+                            self.segments = segments
+                            self.video_id = video_id
+                    
+                    combined_transcript = MockTranscript(combined_transcript_segments, output_video_id)
+                    video_stream = self._add_captions(
+                        video_stream, combined_transcript, edit_options.get("caption_style", "burn_in")
+                    )
+                else:
+                    # Single transcript (shouldn't happen in multi-video, but fallback)
+                    video_stream = self._add_captions(
+                        video_stream, transcript, edit_options.get("caption_style", "burn_in")
+                    )
+            
+            # Handle audio if it exists
+            if has_audio_in_segments:
+                try:
+                    audio_stream = input_concat['a']
+                    audio_stream = self._normalize_audio(audio_stream)
+                    
+                    (
+                        ffmpeg
+                        .output(
+                            video_stream,
+                            audio_stream,
+                            str(output_path),
+                            vcodec='libx264',
+                            acodec='aac',
+                            preset='medium',
+                            crf=23,
+                            movflags='faststart'
+                        )
+                        .overwrite_output()
+                        .run(capture_stdout=True, capture_stderr=True)
+                    )
+                except (KeyError, AttributeError, Exception) as e:
+                    logger.warning(f"Audio processing failed: {e}, rendering video only")
+                    (
+                        ffmpeg
+                        .output(
+                            video_stream,
+                            str(output_path),
+                            vcodec='libx264',
+                            preset='medium',
+                            crf=23,
+                            movflags='faststart'
+                        )
+                        .overwrite_output()
+                        .run(capture_stdout=True, capture_stderr=True)
+                    )
+            else:
+                logger.info(f"Rendering video only (no audio) for {output_video_id}")
+                (
+                    ffmpeg
+                    .output(
+                        video_stream,
+                        str(output_path),
+                        vcodec='libx264',
+                        preset='medium',
+                        crf=23,
+                        movflags='faststart'
+                    )
+                    .overwrite_output()
+                    .run(capture_stdout=True, capture_stderr=True)
+                )
+            
+            logger.info(f"Rendered multi-video: {output_path}")
+            # Convert to relative path
+            try:
+                if not output_path.is_absolute():
+                    output_path = output_path.resolve()
+                relative_path = output_path.relative_to(settings.BASE_STORAGE_PATH)
+                return f"/storage/{relative_path.as_posix()}"
+            except ValueError as e:
+                logger.warning(f"Could not get relative path for {output_path}: {e}")
+                if 'processed' in str(output_path):
+                    parts = Path(output_path).parts
+                    if 'processed' in parts:
+                        idx = parts.index('processed')
+                        if idx + 1 < len(parts):
+                            vid_id = parts[idx + 1]
+                            filename = parts[-1] if len(parts) > idx + 2 else None
+                            if filename:
+                                return f"/storage/processed/{vid_id}/{filename}"
+                return str(output_path)
+            
+        except ffmpeg.Error as e:
+            error_msg = e.stderr.decode() if e.stderr else str(e)
+            logger.error(f"Multi-video rendering failed: {error_msg}")
+            raise Exception(f"Multi-video rendering failed: {error_msg}")
+    
+    def _assign_video_id_by_timestamp(
+        self, 
+        start_timestamp: float,
+        end_timestamp: float,
+        video_durations: Dict[str, float]
+    ) -> tuple:
+        """
+        Assign video_id to a segment based on timestamp and adjust timestamps.
+        Maps timestamp to video based on cumulative durations.
+        Assumes timestamps are in combined timeline and converts to video-relative.
+        
+        Args:
+            start_timestamp: Segment start timestamp (in combined timeline)
+            end_timestamp: Segment end timestamp (in combined timeline)
+            video_durations: Dict mapping video_id to duration
+        
+        Returns:
+            (video_id, adjusted_start, adjusted_end) or (None, start, end) if cannot determine
+        """
+        if not video_durations:
+            return None, start_timestamp, end_timestamp
+        
+        # Calculate cumulative durations to find which video the segment belongs to
+        cumulative = 0.0
+        for vid_id, duration in video_durations.items():
+            if start_timestamp < cumulative + duration:
+                # Segment belongs to this video
+                # Adjust timestamps to be relative to this video
+                adjusted_start = max(0.0, start_timestamp - cumulative)
+                adjusted_end = min(duration, end_timestamp - cumulative)
+                return vid_id, adjusted_start, adjusted_end
+            cumulative += duration
+        
+        # If timestamp exceeds all videos, use last video
+        last_vid_id = list(video_durations.keys())[-1]
+        last_duration = video_durations[last_vid_id]
+        adjusted_start = max(0.0, start_timestamp - cumulative + last_duration)
+        adjusted_end = min(last_duration, end_timestamp - cumulative + last_duration)
+        return last_vid_id, adjusted_start, adjusted_end
+    
+    def _build_combined_transcript(
+        self,
+        edl: List[Dict],
+        transcript_map: Dict[str, List[Dict]],  # video_id -> transcript_segments
+        valid_segments: List[tuple]  # List of (seg_idx, segment, video_path)
+    ) -> List[Dict]:
+        """
+        Build combined transcript for multi-video edit.
+        Maps transcript segments from each video to their position in the final video.
+        
+        Args:
+            edl: Edit Decision List
+            transcript_map: Mapping of video_id to transcript segments
+            valid_segments: List of valid segments with video_id
+        
+        Returns:
+            Combined transcript segments with timestamps adjusted to final video timeline
+        """
+        combined_segments = []
+        current_time = 0.0  # Current position in final video timeline
+        
+        for seg_idx, segment, video_path in valid_segments:
+            seg_video_id = segment.get("video_id")
+            seg_start = segment["start"]  # Relative to source video
+            seg_end = segment["end"]  # Relative to source video
+            seg_duration = seg_end - seg_start
+            
+            # Get transcript segments for this video
+            video_transcript_segments = transcript_map.get(seg_video_id, [])
+            
+            # Filter transcript segments that overlap with this video segment
+            for trans_seg in video_transcript_segments:
+                trans_start = trans_seg.get("start", 0.0)
+                trans_end = trans_seg.get("end", 0.0)
+                
+                # Check if transcript segment overlaps with video segment
+                if trans_end > seg_start and trans_start < seg_end:
+                    # Calculate overlap
+                    overlap_start = max(trans_start, seg_start)
+                    overlap_end = min(trans_end, seg_end)
+                    
+                    # Adjust timestamps to final video timeline
+                    # The transcript segment starts at current_time + (overlap_start - seg_start)
+                    adjusted_start = current_time + (overlap_start - seg_start)
+                    adjusted_end = current_time + (overlap_end - seg_start)
+                    
+                    # Create adjusted transcript segment
+                    adjusted_seg = dict(trans_seg)
+                    adjusted_seg["start"] = adjusted_start
+                    adjusted_seg["end"] = adjusted_end
+                    combined_segments.append(adjusted_seg)
+            
+            # Move current_time forward by segment duration
+            current_time += seg_duration
+        
+        # Sort by start time
+        combined_segments.sort(key=lambda x: x.get("start", 0.0))
+        
+        logger.info(f"Built combined transcript: {len(combined_segments)} segments from {len(transcript_map)} videos")
+        return combined_segments
     
     def _apply_aspect_ratio(self, stream, aspect_ratio: str) -> ffmpeg.Stream:
         """

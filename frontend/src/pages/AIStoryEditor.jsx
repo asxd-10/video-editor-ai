@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Loader2, CheckCircle2, XCircle, Download, Film, Video } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2, XCircle, Download, Film, Video, Plus, X } from 'lucide-react';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import StoryPromptForm from '../components/ai/StoryPromptForm';
@@ -33,11 +33,24 @@ export default function AIStoryEditor() {
   const [editJobId, setEditJobId] = useState(null);
   const [editJobStatus, setEditJobStatus] = useState(null);
   const [originalVideoUrl, setOriginalVideoUrl] = useState(null);
+  const [selectedVideoIds, setSelectedVideoIds] = useState([videoId]); // Multi-video support
+  const [availableVideos, setAvailableVideos] = useState([]);
+  const [showVideoSelector, setShowVideoSelector] = useState(false);
 
   useEffect(() => {
     loadData();
     loadJobs();
+    loadAvailableVideos();
   }, [videoId]);
+  
+  const loadAvailableVideos = async () => {
+    try {
+      const response = await videoAPI.listVideos();
+      setAvailableVideos(response.data.videos || []);
+    } catch (error) {
+      console.error('Failed to load videos:', error);
+    }
+  };
 
   // Auto-populate with test data in development
   useEffect(() => {
@@ -164,9 +177,12 @@ export default function AIStoryEditor() {
   const handleGenerate = async (storyPrompt) => {
     setGenerating(true);
     try {
+      // Use selectedVideoIds (multi-video support)
+      const videoIdsToUse = selectedVideoIds.length > 1 ? selectedVideoIds : undefined;
       const response = await videoAPI.generateAIEdit(videoId, {
         summary: summary,
         story_prompt: storyPrompt,
+        video_ids: videoIdsToUse, // Send multiple video IDs if more than one selected
       });
 
       const jobId = response.data.job_id;
@@ -306,6 +322,73 @@ export default function AIStoryEditor() {
               {data.frames?.count || 0} frames • {formatDuration(data.video_duration || 0)}
             </Badge>
           </div>
+        </motion.div>
+
+        {/* Multi-Video Selector */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-6 card p-4"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium text-dark-700">
+              Videos to Edit {selectedVideoIds.length > 1 && `(${selectedVideoIds.length} selected)`}
+            </label>
+            <button
+              onClick={() => setShowVideoSelector(!showVideoSelector)}
+              className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
+            >
+              <Plus size={14} />
+              {showVideoSelector ? 'Hide' : 'Add Videos'}
+            </button>
+          </div>
+          
+          {/* Selected Videos */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {selectedVideoIds.map((vidId) => {
+              const video = availableVideos.find(v => v.id === vidId) || { id: vidId, title: vidId };
+              return (
+                <Badge
+                  key={vidId}
+                  className="bg-primary-100 text-primary-700 flex items-center gap-1"
+                >
+                  {video.title || vidId}
+                  {vidId !== videoId && (
+                    <button
+                      onClick={() => setSelectedVideoIds(selectedVideoIds.filter(id => id !== vidId))}
+                      className="ml-1 hover:text-primary-900"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </Badge>
+              );
+            })}
+          </div>
+
+          {/* Video Selector Dropdown */}
+          {showVideoSelector && (
+            <div className="border border-dark-200 rounded-lg p-3 bg-white max-h-48 overflow-y-auto">
+              <div className="space-y-2">
+                {availableVideos
+                  .filter(v => !selectedVideoIds.includes(v.id))
+                  .map((video) => (
+                    <button
+                      key={video.id}
+                      onClick={() => setSelectedVideoIds([...selectedVideoIds, video.id])}
+                      className="w-full text-left px-3 py-2 rounded hover:bg-primary-50 text-sm text-dark-700 flex items-center justify-between"
+                    >
+                      <span>{video.title || video.id}</span>
+                      <Plus size={14} className="text-primary-600" />
+                    </button>
+                  ))}
+                {availableVideos.filter(v => !selectedVideoIds.includes(v.id)).length === 0 && (
+                  <p className="text-sm text-dark-500 text-center py-2">All videos selected</p>
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-6">

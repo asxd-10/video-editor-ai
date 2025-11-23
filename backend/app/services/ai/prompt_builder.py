@@ -2,7 +2,7 @@
 Prompt Builder Service
 Constructs optimized prompts for storytelling edit generation
 """
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import json
 import logging
 
@@ -58,7 +58,9 @@ You must output valid JSON matching the provided schema exactly."""
         compressed_data: Dict[str, Any],
         summary: Dict[str, Any],
         story_prompt: Dict[str, Any],
-        video_duration: float
+        video_duration: float,
+        video_ids: Optional[List[str]] = None,
+        videos_metadata: Optional[List[Dict]] = None
     ) -> List[Dict[str, str]]:
         """
         Build complete prompt for storytelling edit generation.
@@ -68,13 +70,16 @@ You must output valid JSON matching the provided schema exactly."""
             summary: Video summary/description
             story_prompt: User's story requirements
             video_duration: Total video duration
+            video_ids: Optional list of video IDs (for multi-video edits)
+            videos_metadata: Optional list of video metadata dicts
         
         Returns:
             List of messages for LLM API
         """
         # Build user prompt
         user_prompt = self._build_user_prompt(
-            compressed_data, summary, story_prompt, video_duration
+            compressed_data, summary, story_prompt, video_duration,
+            video_ids=video_ids, videos_metadata=videos_metadata
         )
         
         return [
@@ -87,15 +92,38 @@ You must output valid JSON matching the provided schema exactly."""
         compressed_data: Dict[str, Any],
         summary: Dict[str, Any],
         story_prompt: Dict[str, Any],
-        video_duration: float
+        video_duration: float,
+        video_ids: Optional[List[str]] = None,
+        videos_metadata: Optional[List[Dict]] = None
     ) -> str:
         """Build the user-facing prompt with all context"""
         
+        is_multi_video = video_ids and len(video_ids) > 1
+        
+        # Calculate desired length percentage and target duration
+        # Support both old format (short/medium/long) and new format (percentage)
+        desired_length_percentage = story_prompt.get("desired_length_percentage")
+        if desired_length_percentage is None:
+            # Backward compatibility: convert old format to percentage
+            old_length = story_prompt.get("desired_length", "medium")
+            if old_length == "short":
+                desired_length_percentage = 30  # 25-33% average
+            elif old_length == "medium":
+                desired_length_percentage = 50
+            elif old_length == "long":
+                desired_length_percentage = 85  # 70-100% average
+            else:
+                desired_length_percentage = 50  # default
+        
+        # Clamp percentage to valid range (25-100)
+        desired_length_percentage = max(25, min(100, float(desired_length_percentage)))
+        target_duration = video_duration * (desired_length_percentage / 100.0)
+        
         # Format frames data
-        frames_text = self._format_frames(compressed_data.get("frames", []))
+        frames_text = self._format_frames(compressed_data.get("frames", []), is_multi_video=is_multi_video)
         
         # Format scenes data
-        scenes_text = self._format_scenes(compressed_data.get("scenes", []))
+        scenes_text = self._format_scenes(compressed_data.get("scenes", []), is_multi_video=is_multi_video)
         
         # Format transcript data
         transcript_text = self._format_transcript(compressed_data.get("transcript", []))
@@ -106,8 +134,25 @@ You must output valid JSON matching the provided schema exactly."""
         # Format story prompt
         story_text = self._format_story_prompt(story_prompt)
         
+        # Build video context header
+        if is_multi_video and videos_metadata:
+            video_context = f"MULTI-VIDEO EDIT:\n"
+            video_context += f"Total Duration: {video_duration:.2f} seconds across {len(video_ids)} videos\n\n"
+            for i, video_meta in enumerate(videos_metadata, 1):
+                video_context += f"Video {i} (ID: {video_meta.get('video_id', 'unknown')}):\n"
+                video_context += f"  - Duration: {video_meta.get('duration', 0):.2f}s\n"
+                video_context += f"  - Frames: {video_meta.get('frames_count', 0)}\n"
+                video_context += f"  - Scenes: {video_meta.get('scenes_count', 0)}\n"
+                if video_meta.get('title'):
+                    video_context += f"  - Title: {video_meta.get('title')}\n"
+                video_context += "\n"
+            video_context += "TASK: Create a compelling edit by mixing and matching the best moments from ALL videos.\n"
+            video_context += "Each EDL segment MUST include a 'video_id' field indicating which video it comes from.\n"
+        else:
+            video_context = f"Duration: {video_duration:.2f} seconds"
+        
         prompt = f"""VIDEO CONTEXT:
-Duration: {video_duration:.2f} seconds
+{video_context}
 
 SUMMARY:
 {summary_text}
@@ -140,37 +185,40 @@ Create a SHORT-FORM edit plan (≤40 seconds) optimized for Shorts/Reels:
    - Climax: Peak moment (60-80% through edit)
    - Resolution: Conclusion + CTA (last 3-5 seconds)
 
-3. PACING: Match desired_length (CRITICAL - this determines how much to cut)
-   - 'short': Cut to 15-70% coverage (flexible range - original video may already be short)
-     * Example: 38s video → final edit should be 5.7-26.6s of content (15-70% of 38s)
-     * Keep the most engaging moments, skip less important parts
-     * This is for Shorts/Reels - viewers have short attention spans
-     * If original video is already short (e.g., 20s), you may keep 70% (14s) - that's fine
-   - 'medium': 50-70% coverage (balanced, preserve story flow)
-     * Example: 38s video → final edit should be 19-26.6s of content
-   - 'long': 70-90% coverage (preserve most content, minimal cutting)
-     * Example: 38s video → final edit should be 26.6-34.2s of content
-   
-   CALCULATION: For a {video_duration:.1f}s video with desired_length='short':
-   - Target coverage: 15-70% = {video_duration * 0.15:.1f}s to {video_duration * 0.70:.1f}s of content
-   - You MUST create an EDL where total "keep" segments = {video_duration * 0.15:.1f}s to {video_duration * 0.70:.1f}s
-   - If original video is already short, higher coverage (50-70%) is acceptable
-   - If original video is long, aim for lower coverage (15-30%) to create engaging short-form content
+3. PACING: Match desired_length_percentage (CRITICAL - this determines how much to cut)
+   - Target coverage: {desired_length_percentage}% of original video duration
+   - Final edit duration = {video_duration:.1f}s × {desired_length_percentage}% = {target_duration:.1f}s
+   - You MUST create an EDL where total "keep" segments = approximately {target_duration:.1f}s (±5% tolerance)
+   - Keep the most engaging moments, skip less important parts
+   - For lower percentages (25-40%): Fast-paced, rapid cuts, high energy
+   - For medium percentages (45-60%): Balanced pacing, preserve story flow
+   - For higher percentages (70-100%): Preserve most content, minimal cutting
 
 4. EDL CREATION:
-   - CRITICAL: Calculate total "keep" duration to match desired_length coverage
-     * For 'short': Total keep segments MUST be 15-70% of video duration (flexible range)
+   - CRITICAL: Calculate total "keep" duration to match {desired_length_percentage}% target
+     * Target duration: {target_duration:.1f}s (from {video_duration:.1f}s original)
      * Count only "keep" segments, ignore "skip" segments
-     * Example: 38s video, 'short' edit → keep segments should total 5.7-26.6s
-     * Example: 20s video, 'short' edit → keep segments can be 3-14s (15-70% is acceptable)
-   - Include all story arc moments (hook, climax, resolution) - but keep them SHORT
+     * Total keep segments MUST be approximately {target_duration:.1f}s (±5% tolerance = {target_duration * 0.95:.1f}s to {target_duration * 1.05:.1f}s)
+     * Example: {video_duration:.1f}s video, {desired_length_percentage}% target → keep segments should total {target_duration:.1f}s
+   - Include all story arc moments (hook, climax, resolution)
    - Prioritize 'good_moments' from scenes (if marked)
    - Include key_moments from summary (if provided)
-   - For 'short' edits: Keep segments should be 1-3s each (fast cuts)
-   - Minimize gaps >3s between segments (but for 'short', some gaps are acceptable if coverage is correct)
-   - Ensure final edit duration ≤40 seconds (sum of all "keep" segments)
+   - For lower percentages (25-40%): Keep segments should be 1-3s each (fast cuts)
+   - For medium percentages (45-60%): Keep segments can be 2-5s each (balanced)
+   - For higher percentages (70-100%): Keep segments can be longer (preserve flow)
+   - Minimize gaps >3s between segments (unless necessary for narrative flow)
+   - Ensure final edit duration matches target ({target_duration:.1f}s ±5%)"""
+        
+        if is_multi_video:
+            prompt += """
+   - FOR MULTI-VIDEO EDITS: Each EDL segment MUST include 'video_id' field indicating source video
+   - Mix and match the best moments from different videos to create a compelling narrative
+   - You can switch between videos to create dynamic, engaging content
+   - Ensure smooth transitions when switching between videos"""
+        
+        prompt += """
    
-   EDL EXAMPLE FOR 'SHORT' EDIT (38s video, target: 15-70% = 5.7-26.6s):
+   EDL EXAMPLE ({video_duration:.1f}s video, target: {desired_length_percentage}% = {target_duration:.1f}s):
    [
      {{"start": 0.0, "end": 2.0, "type": "keep"}},  // Hook: 2s
      {{"start": 2.0, "end": 10.0, "type": "skip"}}, // Skip: 8s
@@ -180,7 +228,22 @@ Create a SHORT-FORM edit plan (≤40 seconds) optimized for Shorts/Reels:
      {{"start": 26.0, "end": 34.0, "type": "skip"}}, // Skip: 8s
      {{"start": 34.0, "end": 36.5, "type": "keep"}}  // Resolution: 2.5s
    ]
-   Total keep: 2 + 2 + 2 + 2.5 = 8.5s (22% coverage) ✅
+   Total keep: 2 + 2 + 2 + 2.5 = 8.5s (22% coverage) ✅"""
+        
+        if is_multi_video:
+            prompt += """
+   
+   EDL EXAMPLE FOR MULTI-VIDEO 'SHORT' EDIT (2 videos, total 60s, target: 15-70% = 9-42s):
+   [
+     {{"start": 0.0, "end": 2.0, "type": "keep", "video_id": "video1"}},  // Hook from video1: 2s
+     {{"start": 5.0, "end": 7.0, "type": "keep", "video_id": "video2"}},  // Best moment from video2: 2s
+     {{"start": 12.0, "end": 14.0, "type": "keep", "video_id": "video1"}}, // Climax from video1: 2s
+     {{"start": 8.0, "end": 10.0, "type": "keep", "video_id": "video2"}}  // Resolution from video2: 2s
+   ]
+   Total keep: 2 + 2 + 2 + 2 = 8s (13% coverage) ✅
+   Note: Each segment includes 'video_id' to indicate source video"""
+        
+        prompt += """
    
    WRONG EXAMPLE (DO NOT DO THIS):
    [
@@ -210,7 +273,7 @@ Output your response as JSON matching the provided schema."""
         
         return prompt
     
-    def _format_frames(self, frames: List[Dict]) -> str:
+    def _format_frames(self, frames: List[Dict], is_multi_video: bool = False) -> str:
         """Format frames data for prompt"""
         if not frames:
             return "No frame data available."
@@ -231,14 +294,18 @@ Output your response as JSON matching the provided schema."""
             if response is None:
                 response = "No description"
             
-            lines.append(f"- {timestamp:.2f}s: {response}")
+            # Add video_id prefix for multi-video edits
+            if is_multi_video and frame.get("source_video_id"):
+                lines.append(f"- [{frame.get('source_video_id')[:8]}...] {timestamp:.2f}s: {response}")
+            else:
+                lines.append(f"- {timestamp:.2f}s: {response}")
         
         if len(frames) > 50:
             lines.append(f"\n... and {len(frames) - 50} more frames")
         
         return "\n".join(lines) if lines else "No frame data available."
     
-    def _format_scenes(self, scenes: List[Dict]) -> str:
+    def _format_scenes(self, scenes: List[Dict], is_multi_video: bool = False) -> str:
         """Format scenes data for prompt"""
         if not scenes:
             return "No scene data available."
@@ -249,7 +316,12 @@ Output your response as JSON matching the provided schema."""
             end = scene.get("end", 0)
             description = scene.get("description", "No description")
             duration = end - start
-            lines.append(f"- {start:.2f}s - {end:.2f}s ({duration:.2f}s): {description[:200]}")
+            
+            # Add video_id prefix for multi-video edits
+            if is_multi_video and scene.get("source_video_id"):
+                lines.append(f"- [{scene.get('source_video_id')[:8]}...] {start:.2f}s - {end:.2f}s ({duration:.2f}s): {description[:200]}")
+            else:
+                lines.append(f"- {start:.2f}s - {end:.2f}s ({duration:.2f}s): {description[:200]}")
         
         return "\n".join(lines) if lines else "No scene data available."
     
@@ -318,8 +390,14 @@ Output your response as JSON matching the provided schema."""
         if story_prompt.get("key_message"):
             lines.append(f"Key Message: {story_prompt['key_message']}")
         
-        if story_prompt.get("desired_length"):
-            lines.append(f"Desired Length: {story_prompt['desired_length']}")
+        # Support both old and new format
+        desired_length_percentage = story_prompt.get("desired_length_percentage")
+        if desired_length_percentage is not None:
+            lines.append(f"Desired Length: {desired_length_percentage}% of original video")
+        elif story_prompt.get("desired_length"):
+            # Backward compatibility
+            old_length = story_prompt.get("desired_length")
+            lines.append(f"Desired Length: {old_length} (legacy format)")
         
         if story_prompt.get("story_arc"):
             arc = story_prompt["story_arc"]

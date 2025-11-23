@@ -162,9 +162,12 @@ class LLMClient:
             }
         }
         
+        # Increase max_tokens to prevent truncation (especially for multi-video edits)
+        # Default to 6000 to handle larger responses
         response = await self.generate(
             messages=messages,
             temperature=temperature,
+            max_tokens=6000,  # Increased from 4000 to handle multi-video responses
             response_format=response_format
         )
         
@@ -180,12 +183,69 @@ class LLMClient:
                 content = content[:-3]
             content = content.strip()
             
+            # Try to parse JSON
             parsed = json.loads(content)
             return parsed
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM JSON response: {e}")
-            logger.error(f"Response content: {content[:500]}")
-            raise ValueError(f"Invalid JSON response from LLM: {e}")
+            
+            # Log error position and context
+            error_pos = getattr(e, 'pos', None)
+            if error_pos:
+                start = max(0, error_pos - 200)
+                end = min(len(content), error_pos + 200)
+                logger.error(f"Error at position {error_pos} (char {error_pos} of {len(content)})")
+                logger.error(f"Context around error:\n{content[start:end]}")
+            else:
+                logger.error(f"Response content (first 3000 chars):\n{content[:3000]}")
+            
+            # Try to repair common JSON issues
+            try:
+                repaired = self._repair_json(content)
+                parsed = json.loads(repaired)
+                logger.warning("Successfully repaired JSON response")
+                return parsed
+            except Exception as repair_error:
+                logger.error(f"JSON repair also failed: {repair_error}")
+                # Log the full response length and a sample
+                logger.error(f"Full response length: {len(content)} characters")
+                if len(content) > 3000:
+                    logger.error(f"Response sample (last 1000 chars):\n{content[-1000:]}")
+                raise ValueError(f"Invalid JSON response from LLM: {e}")
+    
+    def _repair_json(self, content: str) -> str:
+        """
+        Attempt to repair common JSON issues:
+        - Truncated responses (missing closing brackets/braces)
+        - Trailing commas
+        Note: Unterminated strings are harder to fix automatically and may require
+        regenerating the response with higher max_tokens.
+        """
+        import re
+        
+        repaired = content
+        
+        # Fix 1: Remove trailing commas before closing brackets/braces
+        repaired = re.sub(r',(\s*[}\]])', r'\1', repaired)
+        
+        # Fix 2: Close unclosed structures (common with truncated responses)
+        open_braces = repaired.count('{')
+        close_braces = repaired.count('}')
+        open_brackets = repaired.count('[')
+        close_brackets = repaired.count(']')
+        
+        # Only close if we're clearly missing closing brackets
+        # This helps with truncated responses
+        if open_braces > close_braces:
+            repaired += '\n' + '}' * (open_braces - close_braces)
+        if open_brackets > close_brackets:
+            repaired += '\n' + ']' * (open_brackets - close_brackets)
+        
+        # Note: Unterminated strings are more complex to fix automatically
+        # If repair fails, the error logging will show the exact position
+        # and the user may need to increase max_tokens or adjust the prompt
+        
+        return repaired
     
     async def close(self):
         """Close HTTP client"""

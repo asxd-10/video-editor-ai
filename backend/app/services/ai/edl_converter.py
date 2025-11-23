@@ -38,10 +38,10 @@ class EDLConverter:
         Convert LLM EDL to EditorService format.
         
         Args:
-            llm_edl: EDL from LLM agent
+            llm_edl: EDL from LLM agent (may include video_id for multi-video)
         
         Returns:
-            EDL in EditorService format
+            EDL in EditorService format (preserves video_id if present)
         """
         editor_edl = []
         
@@ -50,26 +50,41 @@ class EDLConverter:
             
             # Only include "keep" segments (skip transitions and "skip" segments)
             if seg_type == "keep":
-                editor_edl.append({
+                editor_segment = {
                     "start": segment["start"],
                     "end": segment["end"],
                     "type": "keep"
-                })
+                }
+                # Preserve video_id for multi-video edits
+                if "video_id" in segment:
+                    editor_segment["video_id"] = segment["video_id"]
+                editor_edl.append(editor_segment)
             elif seg_type == "transition":
                 # Transitions are handled separately in EditorService
                 # For now, we'll skip them and let EditorService handle gaps
                 logger.debug(f"Skipping transition segment: {segment}")
             # Skip "skip" segments entirely
         
-        # Sort by start time
-        editor_edl.sort(key=lambda x: x["start"])
+        # Sort by start time (for single video) or by video_id then start time (for multi-video)
+        has_video_ids = any("video_id" in seg for seg in editor_edl)
+        if has_video_ids:
+            # For multi-video, sort by video_id first, then by start time
+            editor_edl.sort(key=lambda x: (x.get("video_id", ""), x["start"]))
+        else:
+            editor_edl.sort(key=lambda x: x["start"])
         
-        # Merge adjacent segments
+        # Merge adjacent segments (only if same video_id for multi-video)
         merged = []
         for segment in editor_edl:
-            if merged and merged[-1]["end"] >= segment["start"]:
-                # Merge with previous
-                merged[-1]["end"] = max(merged[-1]["end"], segment["end"])
+            if merged:
+                last_seg = merged[-1]
+                # Only merge if same video_id (for multi-video) or no video_id (single video)
+                same_video = last_seg.get("video_id") == segment.get("video_id")
+                if same_video and last_seg["end"] >= segment["start"]:
+                    # Merge with previous
+                    merged[-1]["end"] = max(merged[-1]["end"], segment["end"])
+                else:
+                    merged.append(segment)
             else:
                 merged.append(segment)
         

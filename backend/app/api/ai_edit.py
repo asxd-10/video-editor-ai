@@ -4,7 +4,7 @@ Handles AI-driven storytelling edit generation
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from app.database import get_db
 from app.models.ai_edit_job import AIEditJob, AIEditJobStatus
@@ -33,23 +33,94 @@ class StoryPromptInput(BaseModel):
     }
     tone: Optional[str] = "educational"  # educational, entertaining, dramatic, inspirational
     key_message: Optional[str] = ""
-    desired_length: Optional[str] = "medium"  # short, medium, long
+    desired_length_percentage: Optional[float] = 50.0  # 25-100, percentage of original video length
+    desired_length: Optional[str] = None  # DEPRECATED: Use desired_length_percentage instead (short=30%, medium=50%, long=85%)
     style_preferences: Optional[dict] = {
         "pacing": "moderate",
         "transitions": "smooth",
         "emphasis": "balanced"
     }
 
+class FrameLevelData(BaseModel):
+    """Frame-level data from the new format"""
+    frame_timestamp: float
+    description: str
+
+class SceneData(BaseModel):
+    """Scene data from scene_level_data"""
+    description: str
+    start: float
+    end: float
+    metadata: Optional[Dict[str, Any]] = {}
+    scene_metadata: Optional[Dict[str, Any]] = {}
+
+class SceneLevelData(BaseModel):
+    """Scene-level data structure"""
+    scene_count: int
+    scenes: List[SceneData]
+
+class TranscriptSegment(BaseModel):
+    """Transcript segment from transcription_level_data"""
+    start: float
+    end: float
+    text: str
+    speaker: Optional[str] = None
+
+class TranscriptionLevelData(BaseModel):
+    """Transcription-level data structure"""
+    transcript_text: Optional[str] = None
+    transcript_data: Optional[List[TranscriptSegment]] = None
+    segment_count: Optional[int] = 0
+    language_code: Optional[str] = None
+
+class SummaryResult(BaseModel):
+    """Single video result from summary.results array"""
+    media_id: str  # This is the video ID (mapped to video_id internally)
+    video_url: str
+    frame_level_data: Optional[List[FrameLevelData]] = []
+    scene_level_data: Optional[SceneLevelData] = None
+    transcription_level_data: Optional[TranscriptionLevelData] = None
+    
+    class Config:
+        # Allow extra fields that might be in the JSON
+        extra = "allow"
+
 class SummaryInput(BaseModel):
-    video_summary: Optional[str] = ""
-    key_moments: Optional[list] = []
-    content_type: Optional[str] = "presentation"
-    main_topics: Optional[list] = []
-    speaker_style: Optional[str] = "casual"
+    """Summary input matching the new format"""
+    success: Optional[bool] = True
+    message_ids: Optional[List[str]] = []
+    results: Optional[List[SummaryResult]] = []  # Array of video data
+    
+    class Config:
+        # Allow extra fields that might be in the JSON
+        extra = "allow"
+
+class VideoDataInput(BaseModel):
+    """Complete video data provided in request (no database needed) - LEGACY FORMAT"""
+    video_id: str
+    video_url: str  # Required: Video URL to download/process
+    duration_seconds: Optional[float] = None
+    frames: Optional[List[Dict[str, Any]]] = None  # Frame-level data
+    scenes: Optional[List[Dict[str, Any]]] = None  # Scene-level data
+    transcription: Optional[Dict[str, Any]] = None  # Transcription data
+    metadata: Optional[Dict[str, Any]] = None  # Additional metadata
 
 class GenerateAIEditRequest(BaseModel):
-    summary: Optional[SummaryInput] = None
-    story_prompt: Optional[StoryPromptInput] = None  # Allow None for testing
+    """Request model matching the new JSON format"""
+    summary: Optional[SummaryInput] = None  # New format: Contains results array with video data
+    story_prompt: Optional[StoryPromptInput] = None
+    callback_url: Optional[str] = None
+    callback_data: Optional[Dict[str, Any]] = None
+    video_ids: Optional[List[str]] = None  # Optional: Message IDs or other identifiers
+    auto_apply: Optional[bool] = False  # If True, automatically apply edit after generation
+    aspect_ratios: Optional[List[str]] = ["16:9"]  # Aspect ratios for rendering (if auto_apply=True)
+    
+    # Legacy fields for backward compatibility
+    videos_data: Optional[List[VideoDataInput]] = None  # DEPRECATED: Use summary.results instead
+    
+    class Config:
+        # Allow extra fields for flexibility
+        extra = "allow"
 
 
 @router.get("/{video_id}/ai-edit/data")
@@ -108,42 +179,245 @@ async def get_ai_edit_data(video_id: str, db: Session = Depends(get_db)):
 @router.post("/{video_id}/ai-edit/generate")
 async def generate_ai_edit(
     video_id: str,
-    request: GenerateAIEditRequest,
-    db: Session = Depends(get_db)
+    request: GenerateAIEditRequest
 ):
     """
     Generate AI-driven storytelling edit plan.
     
-    Note: video_id here refers to the video_id field in the media table,
-    not the videos table. This is for AI editing use case.
+    SELF-SUFFICIENT: All data comes from POST request JSON, no database queries.
+    
+    Supports both single and multi-video edits:
+    - Provide videos_data with complete video information (video_url, frames, scenes, transcription)
+    - All processing uses provided data, no database lookups
+    
+    Args:
+        video_id: Primary video ID (for job tracking, can be any identifier)
+        request: Complete request with videos_data containing all video information
     """
-    # Load data (media table is source of truth)
-    data_loader = DataLoader(db)
+    import json
+    
+    # Log the complete incoming request for debugging
     try:
-        data = data_loader.load_all_data(video_id)
-    except ValueError as e:
-        db.rollback()  # Rollback any failed transaction
-        raise HTTPException(status_code=404, detail=str(e))
+        request_dict = request.dict()
+        # Pretty print the JSON for readability
+        request_json = json.dumps(request_dict, indent=2, default=str)
+        logger.info("=" * 80)
+        logger.info("INCOMING POST REQUEST - /api/videos/{video_id}/ai-edit/generate")
+        logger.info("=" * 80)
+        logger.info(f"Video ID (path): {video_id}")
+        logger.info(f"Request JSON:\n{request_json}")
+        logger.info("=" * 80)
+        
+        # Also print to console for immediate visibility
+        print("\n" + "=" * 80)
+        print("INCOMING POST REQUEST - /api/videos/{video_id}/ai-edit/generate")
+        print("=" * 80)
+        print(f"Video ID (path): {video_id}")
+        print(f"Request JSON:\n{request_json}")
+        print("=" * 80 + "\n")
     except Exception as e:
-        db.rollback()  # Rollback on any error
-        logger.error(f"Error loading data: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to load data: {str(e)}")
+        logger.warning(f"Failed to log request JSON: {e}")
+        # Fallback: log raw request object
+        logger.info(f"Request object: {request}")
+        print(f"Request object: {request}")
+    # Extract videos from summary.results (NEW FORMAT) or fallback to videos_data (LEGACY)
+    videos_data = []
+    video_ids = []
     
-    # Extract transcript segments
-    transcription = data.get("transcription")
-    transcript_segments = data_loader.extract_transcript_segments(transcription) if transcription else []
+    if request.summary and request.summary.results:
+        # NEW FORMAT: Extract from summary.results
+        for result in request.summary.results:
+            vid_id = result.media_id  # media_id is the video ID
+            video_url = result.video_url
+            
+            if not video_url:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"video_url is required for media_id {vid_id}"
+                )
+            
+            # Transform frame_level_data to frames format
+            frames = []
+            if result.frame_level_data:
+                for frame_data in result.frame_level_data:
+                    frames.append({
+                        "frame_timestamp": frame_data.frame_timestamp,
+                        "description": frame_data.description
+                    })
+            
+            # Transform scene_level_data.scenes to scenes format
+            scenes = []
+            duration_from_scenes = 0.0
+            if result.scene_level_data and result.scene_level_data.scenes:
+                for scene_data in result.scene_level_data.scenes:
+                    scenes.append({
+                        "start": scene_data.start,
+                        "end": scene_data.end,
+                        "description": scene_data.description,
+                        "metadata": scene_data.metadata or {},
+                        "scene_metadata": scene_data.scene_metadata or {}
+                    })
+                    # Calculate duration from last scene end
+                    if scene_data.end > duration_from_scenes:
+                        duration_from_scenes = scene_data.end
+            
+            # Transform transcription_level_data to transcription format
+            transcription = None
+            if result.transcription_level_data:
+                transcript_data = result.transcription_level_data.transcript_data
+                if transcript_data is None:
+                    transcript_data = []
+                
+                transcription = {
+                    "transcript_text": result.transcription_level_data.transcript_text,
+                    "transcript_data": [
+                        {
+                            "start": seg.start,
+                            "end": seg.end,
+                            "text": seg.text,
+                            "speaker": seg.speaker if hasattr(seg, 'speaker') else None
+                        }
+                        for seg in transcript_data
+                    ],
+                    "segment_count": result.transcription_level_data.segment_count or len(transcript_data),
+                    "language_code": result.transcription_level_data.language_code
+                }
+            
+            # Build video data entry
+            videos_data.append({
+                "video_id": vid_id,
+                "video_url": video_url,
+                "duration_seconds": duration_from_scenes if duration_from_scenes > 0 else None,
+                "frames": frames,
+                "scenes": scenes,
+                "transcription": transcription
+            })
+            video_ids.append(vid_id)
     
-    # Prepare summary (handle missing/partial data)
-    summary = request.summary.dict() if request.summary else {}
-    # Merge with defaults for missing fields
-    default_summary = {
-        "video_summary": "",
-        "key_moments": [],
-        "content_type": "presentation",
-        "main_topics": [],
-        "speaker_style": "casual"
+    elif request.videos_data and len(request.videos_data) > 0:
+        # LEGACY FORMAT: Use videos_data
+        videos_data = [v.dict() for v in request.videos_data]
+        video_ids = [v["video_id"] for v in videos_data]
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="summary.results is required. Provide at least one video result with media_id, video_url, frame_level_data, scene_level_data, and transcription_level_data."
+        )
+    
+    if not videos_data or len(videos_data) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No video data found. Provide summary.results with at least one video."
+        )
+    
+    is_multi_video = len(videos_data) > 1
+    
+    # Process provided data (no database queries)
+    from app.services.ai.data_loader import DataLoader
+    
+    # Extract data from provided videos_data
+    all_frames = []
+    all_scenes = []
+    all_transcriptions = []
+    videos_metadata = []
+    total_duration = 0.0
+    
+    for vid_data in videos_data:
+        vid_id = vid_data["video_id"]
+        video_url = vid_data.get("video_url")
+        if not video_url:
+            raise HTTPException(
+                status_code=400,
+                detail=f"video_url is required for video {vid_id}"
+            )
+        
+        # Calculate duration from scenes if not provided
+        duration = vid_data.get("duration_seconds")
+        if duration is None or duration == 0:
+            scenes = vid_data.get("scenes", [])
+            if scenes:
+                # Get max end time from scenes
+                duration = max([s.get("end", 0) for s in scenes], default=0.0)
+            else:
+                duration = 0.0
+        
+        total_duration += duration
+        
+        # Collect frames
+        frames = vid_data.get("frames", [])
+        for frame in frames:
+            frame["video_id"] = vid_id  # Tag with source video
+            all_frames.append(frame)
+        
+        # Collect scenes
+        scenes = vid_data.get("scenes", [])
+        for scene in scenes:
+            scene["video_id"] = vid_id  # Tag with source video
+            all_scenes.append(scene)
+        
+        # Collect transcriptions
+        transcription = vid_data.get("transcription")
+        if transcription:
+            transcription["video_id"] = vid_id  # Tag with source video
+            all_transcriptions.append(transcription)
+        
+        # Build metadata
+        videos_metadata.append({
+            "video_id": vid_id,
+            "video_url": video_url,
+            "duration": duration,
+            "frames_count": len(frames),
+            "scenes_count": len(scenes),
+            "has_transcription": transcription is not None
+        })
+    
+    # Extract transcript segments from provided transcriptions
+    data_loader = DataLoader(None)  # No DB needed
+    transcript_segments = []
+    for transcription in all_transcriptions:
+        if transcription:
+            segments = data_loader.extract_transcript_segments(transcription)
+            # Tag segments with source video_id
+            for seg in segments:
+                seg["source_video_id"] = transcription.get("video_id")
+            transcript_segments.extend(segments)
+    
+    # Prepare data structure (matching what DataLoader would return)
+    data = {
+        "frames": all_frames,
+        "scenes": all_scenes,
+        "transcription": all_transcriptions[0] if len(all_transcriptions) == 1 else all_transcriptions,
+        "video_duration": total_duration,
+        "videos": videos_metadata
     }
-    summary = {**default_summary, **summary}  # User values override defaults
+    
+    # Prepare summary (handle new format vs legacy format)
+    if request.summary:
+        summary_dict = request.summary.dict()
+        # New format has success, message_ids, results - extract useful info
+        # For backward compatibility, create a summary structure
+        summary = {
+            "success": summary_dict.get("success", True),
+            "message_ids": summary_dict.get("message_ids", []),
+            "video_summary": "",  # Extract from results if needed
+            "key_moments": [],
+            "content_type": "presentation",
+            "main_topics": [],
+            "speaker_style": "casual",
+            "results_count": len(summary_dict.get("results", []))
+        }
+    else:
+        # Fallback to defaults
+        summary = {
+            "success": True,
+            "message_ids": [],
+            "video_summary": "",
+            "key_moments": [],
+            "content_type": "presentation",
+            "main_topics": [],
+            "speaker_style": "casual",
+            "results_count": 0
+        }
     
     # Prepare story prompt (handle missing/partial data)
     story_prompt = request.story_prompt.dict() if request.story_prompt else {}
@@ -172,34 +446,65 @@ async def generate_ai_edit(
         story_prompt["style_preferences"] = {**default_story_prompt["style_preferences"], **story_prompt["style_preferences"]}
     story_prompt = {**default_story_prompt, **story_prompt}  # User values override defaults
     
-    # Create AI edit job
-    try:
-        ai_edit_job = AIEditJob(
-            video_id=video_id,
+    # Create job ID (UUID, no database needed)
+    import uuid
+    job_id = str(uuid.uuid4())
+    
+    # Check if auto_apply is enabled
+    if request.auto_apply:
+        # Pipeline: Generate -> Apply -> Save to processed_dir
+        from app.workers.tasks import generate_and_apply_ai_edit_pipeline
+        aspect_ratios = request.aspect_ratios or ["16:9"]
+        task = generate_and_apply_ai_edit_pipeline.delay(
+            job_id=job_id,
+            videos_data=videos_data,
             summary=summary,
             story_prompt=story_prompt,
-            status=AIEditJobStatus.QUEUED
+            data=data,  # Pre-processed data
+            transcript_segments=transcript_segments,
+            videos_metadata=videos_metadata if is_multi_video else None,
+            aspect_ratios=aspect_ratios,
+            primary_video_id=video_id,  # For output directory
+            callback_url=request.callback_url,
+            callback_data=request.callback_data
         )
-        db.add(ai_edit_job)
-        db.commit()
-        db.refresh(ai_edit_job)
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error creating AI edit job: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to create edit job: {str(e)}")
-    
-    # Queue background task
-    from app.workers.tasks import generate_ai_edit_task
-    task = generate_ai_edit_task.delay(ai_edit_job.id)
-    
-    logger.info(f"AI edit job {ai_edit_job.id} queued, task_id: {task.id}")
-    
-    return {
-        "job_id": ai_edit_job.id,
-        "status": ai_edit_job.status,
-        "task_id": task.id,
-        "message": "AI edit generation started"
-    }
+        
+        logger.info(f"AI edit pipeline {job_id} queued (generate + apply + save), task_id: {task.id}")
+        
+        return {
+            "job_id": job_id,
+            "status": "queued",
+            "task_id": task.id,
+            "message": "AI edit pipeline started (generate -> apply -> save to processed_dir)",
+            "video_ids": video_ids,
+            "is_multi_video": is_multi_video,
+            "auto_apply": True,
+            "aspect_ratios": aspect_ratios
+        }
+    else:
+        # Just generate the plan
+        from app.workers.tasks import generate_ai_edit_task_standalone
+        task = generate_ai_edit_task_standalone.delay(
+            job_id=job_id,
+            videos_data=videos_data,
+            summary=summary,
+            story_prompt=story_prompt,
+            data=data,  # Pre-processed data
+            transcript_segments=transcript_segments,
+            videos_metadata=videos_metadata if is_multi_video else None
+        )
+        
+        logger.info(f"AI edit job {job_id} queued ({'multi-video' if is_multi_video else 'single-video'}), task_id: {task.id}")
+        
+        return {
+            "job_id": job_id,
+            "status": "queued",
+            "task_id": task.id,
+            "message": "AI edit generation started (no database dependencies)",
+            "video_ids": video_ids,
+            "is_multi_video": is_multi_video,
+            "auto_apply": False
+        }
 
 
 @router.get("/{video_id}/ai-edit/plan/{job_id}")
@@ -283,36 +588,69 @@ async def apply_ai_edit(
     if request.aspect_ratios:
         edit_options["aspect_ratios"] = request.aspect_ratios
     
-    # Cache media data to avoid DB queries in Celery task (prevents timeout)
-    media = db.query(Media).filter(Media.video_id == video_id).first()
-    if not media:
-        raise HTTPException(status_code=404, detail="Media not found")
+    # Determine if this is a multi-video edit
+    video_ids = job.video_ids if job.video_ids and len(job.video_ids) > 0 else [job.video_id]
+    is_multi_video = len(video_ids) > 1
     
-    # Get transcript segments if captions are enabled
-    transcript_segments = None
-    if edit_options.get("captions"):
-        transcript = db.query(Transcript).filter(Transcript.video_id == video_id).first()
-        if transcript:
-            transcript_segments = transcript.segments
-    
-    # Cache media data
-    cached_media_data = {
-        "video_url": media.video_url,
-        "original_path": media.original_path,
-        "duration_seconds": media.duration_seconds or 0.0,
-        "has_audio": getattr(media, 'has_audio', True) if hasattr(media, 'has_audio') else True,
-        "transcript_segments": transcript_segments
-    }
+    # Cache media data for all videos to avoid DB queries in Celery task (prevents timeout)
+    if is_multi_video:
+        # Multi-video: load data for all videos
+        multi_video_data = {}
+        for vid_id in video_ids:
+            media = db.query(Media).filter(Media.video_id == vid_id).first()
+            if not media:
+                logger.warning(f"Media not found for video_id: {vid_id}, skipping")
+                continue
+            
+            transcript_segments = None
+            if edit_options.get("captions"):
+                transcript = db.query(Transcript).filter(Transcript.video_id == vid_id).first()
+                if transcript:
+                    transcript_segments = transcript.segments
+            
+            multi_video_data[vid_id] = {
+                "video_url": media.video_url,
+                "original_path": media.original_path,
+                "duration_seconds": media.duration_seconds or 0.0,
+                "has_audio": getattr(media, 'has_audio', True) if hasattr(media, 'has_audio') else True,
+                "transcript_segments": transcript_segments
+            }
+        
+        if not multi_video_data:
+            raise HTTPException(status_code=404, detail="No valid media found for video_ids")
+        
+        cached_media_data = None  # Not used for multi-video
+    else:
+        # Single video: use existing logic
+        media = db.query(Media).filter(Media.video_id == video_id).first()
+        if not media:
+            raise HTTPException(status_code=404, detail="Media not found")
+        
+        transcript_segments = None
+        if edit_options.get("captions"):
+            transcript = db.query(Transcript).filter(Transcript.video_id == video_id).first()
+            if transcript:
+                transcript_segments = transcript.segments
+        
+        cached_media_data = {
+            "video_url": media.video_url,
+            "original_path": media.original_path,
+            "duration_seconds": media.duration_seconds or 0.0,
+            "has_audio": getattr(media, 'has_audio', True) if hasattr(media, 'has_audio') else True,
+            "transcript_segments": transcript_segments
+        }
+        multi_video_data = None
     
     # Create EditJob record (will be processed by Celery)
     edit_job = EditJob(
-        video_id=video_id,
+        video_id=video_ids[0],  # Primary video_id for output directory
         clip_candidate_id=None,  # AI edit doesn't use clip candidates
         edit_options={
             **edit_options,
             "_ai_edl": editor_edl,  # Store EDL in edit_options for the task
             "_ai_edit_job_id": job.id,  # Link to AI edit job
-            "_media_data": cached_media_data  # Cache media data to avoid DB query in task
+            "_media_data": cached_media_data,  # Cache media data for single video
+            "_multi_video_data": multi_video_data  # Cache media data for multi-video
         },
         status=EditJobStatus.QUEUED
     )

@@ -47,22 +47,26 @@ class StorytellingAgent:
         transcript_segments: List[Dict],
         summary: Dict[str, Any],
         story_prompt: Dict[str, Any],
-        video_duration: float
+        video_duration: float,
+        video_ids: Optional[List[str]] = None,
+        videos_metadata: Optional[List[Dict]] = None
     ) -> Dict[str, Any]:
         """
         Generate storytelling edit plan using LLM agent.
         
         Args:
-            frames: Frame data with LLM responses
-            scenes: Scene data with descriptions
+            frames: Frame data with LLM responses (may include source_video_id)
+            scenes: Scene data with descriptions (may include source_video_id)
             transcript_segments: Transcript segments
             summary: Video summary/description
             story_prompt: User's story requirements
             video_duration: Total video duration
+            video_ids: Optional list of video IDs (for multi-video edits)
+            videos_metadata: Optional list of video metadata dicts
         
         Returns:
             {
-                "edl": [...],  # Validated Edit Decision List
+                "edl": [...],  # Validated Edit Decision List (with video_id for each segment)
                 "story_analysis": {...},
                 "key_moments": [...],
                 "transitions": [...],
@@ -74,7 +78,11 @@ class StorytellingAgent:
                 }
             }
         """
-        logger.info(f"Generating storytelling edit plan for {video_duration:.2f}s video")
+        is_multi_video = video_ids and len(video_ids) > 1
+        if is_multi_video:
+            logger.info(f"Generating storytelling edit plan for {len(video_ids)} videos ({video_duration:.2f}s total)")
+        else:
+            logger.info(f"Generating storytelling edit plan for {video_duration:.2f}s video")
         
         # Step 1: Compress data
         logger.info("Compressing data for LLM context...")
@@ -97,11 +105,13 @@ class StorytellingAgent:
             compressed_data=compressed_data,
             summary=summary,
             story_prompt=story_prompt,
-            video_duration=video_duration
+            video_duration=video_duration,
+            video_ids=video_ids,
+            videos_metadata=videos_metadata
         )
         
         # Step 3: Define JSON schema for structured output
-        json_schema = self._get_edl_schema(video_duration)
+        json_schema = self._get_edl_schema(video_duration, video_ids=video_ids)
         
         # Step 4: Call LLM
         logger.info("Calling LLM agent...")
@@ -159,8 +169,46 @@ class StorytellingAgent:
         
         return result
     
-    def _get_edl_schema(self, video_duration: float) -> Dict[str, Any]:
+    def _get_edl_schema(self, video_duration: float, video_ids: Optional[List[str]] = None) -> Dict[str, Any]:
         """Get JSON schema for structured LLM output"""
+        is_multi_video = video_ids and len(video_ids) > 1
+        
+        # EDL segment properties
+        edl_segment_properties = {
+            "start": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": video_duration
+            },
+            "end": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": video_duration
+            },
+            "type": {
+                "type": "string",
+                "enum": ["keep", "skip", "transition"]
+            },
+            "reason": {"type": "string"},
+            "transition_type": {
+                "type": "string",
+                "enum": ["fade", "zoom", "crossfade"]
+            },
+            "transition_duration": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 2.0
+            }
+        }
+        
+        # Add video_id field for multi-video edits
+        if is_multi_video:
+            edl_segment_properties["video_id"] = {
+                "type": "string",
+                "enum": video_ids,
+                "description": "ID of the source video for this segment"
+            }
+        
         return {
             "type": "object",
             "properties": {
@@ -249,33 +297,8 @@ class StorytellingAgent:
                     "type": "array",
                     "items": {
                         "type": "object",
-                        "properties": {
-                            "start": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": video_duration
-                            },
-                            "end": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": video_duration
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["keep", "skip", "transition"]
-                            },
-                            "reason": {"type": "string"},
-                            "transition_type": {
-                                "type": "string",
-                                "enum": ["fade", "zoom", "crossfade"]
-                            },
-                            "transition_duration": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 2.0
-                            }
-                        },
-                        "required": ["start", "end", "type"]
+                        "properties": edl_segment_properties,
+                        "required": ["start", "end", "type"] + (["video_id"] if is_multi_video else [])
                     }
                 },
                 "recommendations": {

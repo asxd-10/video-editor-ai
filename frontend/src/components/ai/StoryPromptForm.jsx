@@ -18,10 +18,11 @@ const AUDIENCE_OPTIONS = [
   { value: 'creators', label: 'Content Creators' },
 ];
 
-const LENGTH_OPTIONS = [
-  { value: 'short', label: 'Short (< 60s)' },
-  { value: 'medium', label: 'Medium (1-3 min)' },
-  { value: 'long', label: 'Long (> 3 min)' },
+// Percentage-based length options
+const LENGTH_PRESETS = [
+  { percentage: 30, label: 'Short (30%)', description: '1/4 to 1/3 of original' },
+  { percentage: 50, label: 'Medium (50%)', description: 'About half of original' },
+  { percentage: 85, label: 'Long (85%)', description: '70-100% of original' },
 ];
 
 export default function StoryPromptForm({ onSubmit, initialData, loading }) {
@@ -35,7 +36,7 @@ export default function StoryPromptForm({ onSubmit, initialData, loading }) {
     },
     tone: initialData?.tone || 'educational',
     key_message: initialData?.key_message || '',
-    desired_length: initialData?.desired_length || 'medium',
+    desired_length_percentage: initialData?.desired_length_percentage || 50.0,
     style_preferences: {
       pacing: initialData?.style_preferences?.pacing || 'moderate',
       transitions: initialData?.style_preferences?.transitions || 'smooth',
@@ -183,24 +184,68 @@ export default function StoryPromptForm({ onSubmit, initialData, loading }) {
         </div>
       </div>
 
-      {/* Desired Length */}
+      {/* Desired Length Percentage */}
       <div>
-        <label className="text-sm font-semibold text-dark-900 mb-2 block">Desired Length</label>
-        <div className="grid grid-cols-3 gap-2">
-          {LENGTH_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setFormData({ ...formData, desired_length: option.value })}
-              className={`px-4 py-2 rounded-lg border transition-all text-sm ${
-                formData.desired_length === option.value
-                  ? 'bg-primary-500 text-white border-primary-500'
-                  : 'bg-white border-dark-200 text-dark-700 hover:border-primary-300'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+        <label className="text-sm font-semibold text-dark-900 mb-2 block">
+          Desired Length: {formData.desired_length_percentage}% of original video
+        </label>
+        <div className="space-y-3">
+          {/* Percentage Slider */}
+          <div className="relative">
+            <input
+              type="range"
+              min="25"
+              max="100"
+              step="5"
+              value={formData.desired_length_percentage}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  desired_length_percentage: parseFloat(e.target.value),
+                })
+              }
+              className="w-full h-2 bg-dark-200 rounded-lg appearance-none cursor-pointer accent-primary-500"
+            />
+            <div className="flex justify-between text-xs text-dark-500 mt-1">
+              <span>25%</span>
+              <span>50%</span>
+              <span>75%</span>
+              <span>100%</span>
+            </div>
+          </div>
+          
+          {/* Quick Presets */}
+          <div className="flex gap-2">
+            {LENGTH_PRESETS.map((preset) => (
+              <button
+                key={preset.percentage}
+                type="button"
+                onClick={() =>
+                  setFormData({
+                    ...formData,
+                    desired_length_percentage: preset.percentage,
+                  })
+                }
+                className={`px-3 py-1.5 rounded-lg border transition-all text-xs flex-1 ${
+                  Math.abs(formData.desired_length_percentage - preset.percentage) < 5
+                    ? 'bg-primary-500 text-white border-primary-500'
+                    : 'bg-white border-dark-200 text-dark-700 hover:border-primary-300'
+                }`}
+                title={preset.description}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          
+          {/* Description */}
+          <p className="text-xs text-dark-500">
+            {formData.desired_length_percentage <= 33
+              ? 'Short: Fast-paced, rapid cuts (1/4 to 1/3 of original)'
+              : formData.desired_length_percentage <= 60
+              ? 'Medium: Balanced pacing (about half of original)'
+              : 'Long: Preserve most content (70-100% of original)'}
+          </p>
         </div>
       </div>
 

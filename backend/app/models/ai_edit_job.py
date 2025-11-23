@@ -20,7 +20,8 @@ class AIEditJob(Base):
     __tablename__ = "ai_edit_jobs"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    video_id = Column(String, ForeignKey('media.video_id'), nullable=False, index=True)  # References media.video_id
+    video_id = Column(String, ForeignKey('media.video_id'), nullable=False, index=True)  # References media.video_id (primary/legacy)
+    video_ids = Column(JSON, nullable=True)  # List of video IDs for multi-video edits [video_id1, video_id2, ...]
     
     # Input data
     summary = Column(JSON, nullable=True)  # Video summary/description

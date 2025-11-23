@@ -238,12 +238,27 @@ class DataLoader:
         Extract transcript segments from transcription record.
         
         Args:
-            transcription: Transcription record
+            transcription: Transcription record (dict) or list of records
         
         Returns:
             List of segments [{start, end, text, ...}]
         """
         if not transcription:
+            return []
+        
+        # Handle case where transcription is already a list (shouldn't happen, but be defensive)
+        if isinstance(transcription, list):
+            # If it's a list, extract segments from all transcriptions
+            all_segments = []
+            for trans in transcription:
+                if isinstance(trans, dict):
+                    segments = self.extract_transcript_segments(trans)
+                    all_segments.extend(segments)
+            return all_segments
+        
+        # transcription should be a dict
+        if not isinstance(transcription, dict):
+            logger.warning(f"Unexpected transcription type: {type(transcription)}")
             return []
         
         transcript_data = transcription.get("transcript_data")
@@ -261,4 +276,100 @@ class DataLoader:
                 return segments
         
         return []
+    
+    def load_all_data_multi(self, video_ids: List[str]) -> Dict[str, Any]:
+        """
+        Load all data for multiple videos and combine them intelligently.
+        
+        Args:
+            video_ids: List of video IDs from media table
+        
+        Returns:
+            {
+                "media": [{...}, {...}],  # List of media records
+                "transcription": [{...}, {...}],  # List of transcriptions
+                "frames": [...],  # Combined frames with video_id tag
+                "scenes": [...],  # Combined scenes with video_id tag
+                "video_duration": float,  # Total combined duration
+                "videos": [  # Per-video metadata
+                    {"video_id": "...", "duration": float, "frames_count": int, ...}
+                ]
+            }
+        """
+        if not video_ids:
+            raise ValueError("video_ids list cannot be empty")
+        
+        all_media = []
+        all_transcriptions = []
+        all_frames = []
+        all_scenes = []
+        videos_metadata = []
+        total_duration = 0.0
+        
+        # Load data for each video
+        for video_id in video_ids:
+            media = self.load_media(video_id)
+            if not media:
+                logger.warning(f"Media not found for video_id: {video_id}, skipping")
+                continue
+            
+            transcription = self.load_transcription(video_id)
+            frames = self.load_frames(video_id)
+            scenes = self.load_scenes(video_id)
+            
+            # Calculate video duration
+            video_duration = 0.0
+            if media.get("duration_seconds"):
+                video_duration = float(media["duration_seconds"])
+            elif media.get("duration"):
+                video_duration = float(media["duration"])
+            
+            # Tag frames and scenes with video_id for tracking
+            tagged_frames = []
+            for frame in frames:
+                tagged_frame = dict(frame)
+                tagged_frame["source_video_id"] = video_id
+                tagged_frames.append(tagged_frame)
+            
+            tagged_scenes = []
+            for scene in scenes:
+                tagged_scene = dict(scene)
+                tagged_scene["source_video_id"] = video_id
+                tagged_scenes.append(tagged_scene)
+            
+            all_media.append(media)
+            all_transcriptions.append(transcription)
+            all_frames.extend(tagged_frames)
+            all_scenes.extend(tagged_scenes)
+            total_duration += video_duration
+            
+            videos_metadata.append({
+                "video_id": video_id,
+                "duration": video_duration,
+                "frames_count": len(frames),
+                "scenes_count": len(scenes),
+                "has_transcription": bool(transcription),
+                "title": media.get("title", ""),
+                "video_url": media.get("video_url"),
+                "original_path": media.get("original_path")
+            })
+        
+        if not all_media:
+            raise ValueError(f"No valid media found for video_ids: {video_ids}")
+        
+        # Sort frames by timestamp (across all videos)
+        all_frames.sort(key=lambda f: f.get("timestamp_seconds", 0.0))
+        
+        # Sort scenes by start time (across all videos)
+        all_scenes.sort(key=lambda s: s.get("start", 0.0))
+        
+        return {
+            "media": all_media,
+            "transcription": all_transcriptions,
+            "frames": all_frames,
+            "scenes": all_scenes,
+            "video_duration": total_duration,
+            "videos": videos_metadata,
+            "video_ids": video_ids  # Keep track of which videos were used
+        }
 
